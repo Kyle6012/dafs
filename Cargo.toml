@@ -1,0 +1,33 @@
+[package]
+name = "dafs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+bincode = "1"
+libp2p = { version = "0.52.4", features = [
+  "tcp",
+  "dns",
+  "tokio",
+  "mdns",
+  "noise",
+  "yamux",
+  "macros"
+] }
+
+aes-gcm = "0.10" 
+rand = "0.8"
+anyhow = "1"
+log = "0.4"
+env_logger = "0.10"
+futures = "0.3"
+sled = "0.34"
+uuid = { version = "1", features = ["v4", "serde"] }
+x25519-dalek = "2"
+
+#[dependencies.pyo3]
+#version = "0.20"
+#features = ["extension-module"]
