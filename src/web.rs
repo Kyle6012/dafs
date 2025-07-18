@@ -27,7 +27,7 @@ pub async fn run_web_server() -> anyhow::Result<()> {
         println!("⚠️  Warning: Web assets not found, using fallback page");
         "".to_string()
     });
-    let serve_dir = get_service(ServeDir::new(format!("{}/assets", web_assets_path)))
+    let serve_dir = get_service(ServeDir::new(web_assets_path.clone()))
         .handle_error(|error: std::io::Error| async move {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -35,7 +35,7 @@ pub async fn run_web_server() -> anyhow::Result<()> {
             )
         });
     let app = Router::new()
-        .route_service("/assets/*path", serve_dir)
+        .route_service("/*path", serve_dir)
         .fallback(handle_spa);
     let addr: SocketAddr = "127.0.0.1:3093".parse().unwrap();
     let listener = tokio::net::TcpListener::bind(addr).await?;

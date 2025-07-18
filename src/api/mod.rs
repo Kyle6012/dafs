@@ -20,6 +20,7 @@ use std::sync::Mutex;
 use axum::http::HeaderMap;
 use std::fs::{self, OpenOptions};
 use crate::ai::{train_local_model, aggregate_remote_model, NCFModel};
+use tower_http::cors::{CorsLayer, Any};
 
 pub static USER_DB: once_cell::sync::Lazy<Mutex<HashMap<String, User>>> = once_cell::sync::Lazy::new(|| Mutex::new(HashMap::new()));
 
@@ -607,8 +608,14 @@ pub async fn run_with_storage_and_p2p(storage: Arc<Storage>, p2p: Arc<P2PNode>) 
         .route("/ai/recommend", get(ai_recommend))
         .route("/ai/aggregate", post(ai_aggregate))
         ;
-    // TODO: Re-enable CORS after build is unblocked. CORS layer causes Service trait error in Axum 0.6.
+    // Configure CORS
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+    
     let app = app
+        .layer(cors)
         .layer(Extension(storage))
         .layer(Extension(p2p));
 
