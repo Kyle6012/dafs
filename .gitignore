@@ -1,3 +1,8 @@
 /target
 Cargo.lock
 dafs_db
+.vscode
+.env
+/web/node_modules
+/web/dist
+/web/.env
