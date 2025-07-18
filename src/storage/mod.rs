@@ -2,6 +2,7 @@ use anyhow::Result;
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 use sled::Db;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileMetadata {
@@ -11,6 +12,9 @@ pub struct FileMetadata {
     pub owner_peer_id: String,
     pub checksum: String,
     pub size: u64,
+    pub encrypted_file_key: Vec<u8>, // new field
+    pub shared_keys: HashMap<String, Vec<u8>>, // username -> encrypted file key
+    pub allowed_peers: Vec<String>, // peer IDs allowed to access this file
 }
 
 pub struct Storage {
@@ -44,5 +48,11 @@ impl Storage {
             out.push(meta);
         }
         Ok(out)
+    }
+} 
+
+impl Default for Storage {
+    fn default() -> Self {
+        Storage::new("dafs_db").expect("Failed to open default dafs_db")
     }
 } 

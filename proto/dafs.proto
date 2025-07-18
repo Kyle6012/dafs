@@ -1,0 +1,246 @@
+syntax = "proto3";
+
+package dafs;
+
+// AI Model Service
+service AIService {
+  // Train the local AI model
+  rpc TrainModel(TrainRequest) returns (TrainResponse);
+  
+  // Get recommendations for a user
+  rpc GetRecommendations(RecommendationsRequest) returns (RecommendationsResponse);
+  
+  // Aggregate a remote model into local model
+  rpc AggregateModel(AggregateRequest) returns (AggregateResponse);
+  
+  // Export local model for sharing
+  rpc ExportModel(ExportRequest) returns (ExportResponse);
+}
+
+// File Management Service
+service FileService {
+  // Upload file
+  rpc UploadFile(stream UploadChunk) returns (UploadResponse);
+  
+  // Download file
+  rpc DownloadFile(DownloadRequest) returns (stream DownloadChunk);
+  
+  // List files
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+  
+  // Share file with another user
+  rpc ShareFile(ShareFileRequest) returns (ShareFileResponse);
+  // Get file metadata
+  rpc GetFileMetadata(FileMetadataRequest) returns (FileMetadataResponse);
+}
+
+// Auth Service
+service AuthService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+}
+
+// P2P Service
+service P2PService {
+  // List connected peers
+  rpc ListPeers(ListPeersRequest) returns (ListPeersResponse);
+  
+  // Add bootstrap node
+  rpc AddBootstrapNode(BootstrapNodeRequest) returns (BootstrapNodeResponse);
+  
+  // Remove bootstrap node
+  rpc RemoveBootstrapNode(BootstrapNodeRequest) returns (BootstrapNodeResponse);
+  
+  // List bootstrap nodes
+  rpc ListBootstrapNodes(ListBootstrapNodesRequest) returns (ListBootstrapNodesResponse);
+  // P2P file listing and download
+  rpc ListP2pFiles(ListP2pFilesRequest) returns (ListP2pFilesResponse);
+  rpc P2pDownloadChunk(P2pDownloadChunkRequest) returns (P2pDownloadChunkResponse);
+}
+
+// AI Service Messages
+message TrainRequest {
+  // Optional: specific user-file interactions to train on
+  repeated UserFileInteraction interactions = 1;
+}
+
+message UserFileInteraction {
+  string user_id = 1;
+  string file_id = 2;
+}
+
+message TrainResponse {
+  bool success = 1;
+  string message = 2;
+  uint32 epoch = 3;
+}
+
+message RecommendationsRequest {
+  string user_id = 1;
+  uint32 top_n = 2;
+}
+
+message RecommendationsResponse {
+  repeated FileMetadata files = 1;
+}
+
+message AggregateRequest {
+  bytes model_data = 1; // Serialized NCFModel
+}
+
+message AggregateResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ExportRequest {
+  // Empty for now, could add options later
+}
+
+message ExportResponse {
+  bytes model_data = 1; // Serialized NCFModel
+}
+
+// File Service Messages
+message UploadChunk {
+  string file_id = 1;
+  uint32 chunk_index = 2;
+  uint32 total_chunks = 3;
+  bytes data = 4;
+  FileMetadata metadata = 5; // Only in first chunk
+}
+
+message UploadResponse {
+  bool success = 1;
+  string file_id = 2;
+  string message = 3;
+}
+
+message DownloadRequest {
+  string file_id = 1;
+  string username = 2;
+  string password = 3;
+}
+
+message DownloadChunk {
+  bytes data = 1;
+  uint32 chunk_index = 2;
+  bool is_last = 3;
+}
+
+message ListFilesRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message ListFilesResponse {
+  repeated FileMetadata files = 1;
+}
+
+message ShareFileRequest {
+  string file_id = 1;
+  string owner_username = 2;
+  string owner_password = 3;
+  string recipient_username = 4;
+}
+
+message ShareFileResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Auth Service Messages
+message RegisterRequest {
+  string username = 1;
+  string password = 2;
+}
+message RegisterResponse {
+  bool success = 1;
+  string message = 2;
+}
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+message LoginResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// File Metadata Fetch
+message FileMetadataRequest {
+  string file_id = 1;
+}
+message FileMetadataResponse {
+  FileMetadata metadata = 1;
+  bool found = 2;
+  string message = 3;
+}
+
+// P2P File Listing/Download
+message ListP2pFilesRequest {
+  string peer_id = 1;
+}
+message ListP2pFilesResponse {
+  repeated FileMetadata files = 1;
+}
+message P2pDownloadChunkRequest {
+  string peer_id = 1;
+  string file_id = 2;
+  uint32 chunk_index = 3;
+  uint32 chunk_size = 4;
+}
+message P2pDownloadChunkResponse {
+  bytes data = 1;
+  uint32 chunk_index = 2;
+  bool is_last = 3;
+}
+
+// P2P Service Messages
+message ListPeersRequest {
+  // Empty for now
+}
+
+message ListPeersResponse {
+  repeated PeerInfo peers = 1;
+}
+
+message PeerInfo {
+  string peer_id = 1;
+  string address = 2;
+  bool is_connected = 3;
+}
+
+message BootstrapNodeRequest {
+  string peer_id = 1;
+  string address = 2;
+}
+
+message BootstrapNodeResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListBootstrapNodesRequest {
+  // Empty for now
+}
+
+message ListBootstrapNodesResponse {
+  repeated BootstrapNodeInfo nodes = 1;
+}
+
+message BootstrapNodeInfo {
+  string peer_id = 1;
+  string address = 2;
+}
+
+// Common Messages
+message FileMetadata {
+  string file_id = 1;
+  string filename = 2;
+  repeated string tags = 3;
+  string owner_peer_id = 4;
+  string checksum = 5;
+  uint64 size = 6;
+  map<string, bytes> shared_keys = 7; // username -> encrypted file key
+} 

@@ -1,0 +1,30 @@
+[Unit]
+Description=DAFS - Decentralized AI File System
+Documentation=https://github.com/Kyle6012/dafs
+After=network.target
+
+[Service]
+Type=simple
+User=dafs
+Group=dafs
+WorkingDirectory=/var/lib/dafs
+ExecStart=/usr/bin/dafs
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dafs
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/dafs
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target 
