@@ -6,6 +6,7 @@ mod api;
 mod grpc;
 mod models;
 mod web;
+mod cli;
 
 use storage::Storage;
 use std::sync::Arc;
@@ -16,6 +17,10 @@ use clap::{Parser, ArgAction};
 #[command(name = "dafs")]
 #[command(about = "Decentralized AI File System")]
 struct Cli {
+    /// Start interactive CLI shell
+    #[arg(long, short)]
+    cli: bool,
+    
     /// Start the web dashboard server
     #[arg(long, action = ArgAction::SetTrue)]
     web: bool,
@@ -58,6 +63,12 @@ async fn main() -> anyhow::Result<()> {
     env_logger::init();
     
     let cli = Cli::parse();
+    
+    // If --cli flag is provided, start interactive shell
+    if cli.cli {
+        cli::run_repl();
+        return Ok(());
+    }
     
     // If no specific services are requested, run in integrated mode
     let integrated_mode = cli.integrated || (!cli.web && !cli.api && !cli.grpc && !cli.p2p);
