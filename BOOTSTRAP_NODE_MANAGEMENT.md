@@ -43,7 +43,7 @@ sudo apt install -y curl build-essential pkg-config libssl-dev
 
 ```bash
 # 1. Clone and build DAFS
-git clone <repository-url>
+git clone https://github.com/Kyle6012/dafs.git
 cd dafs
 cargo build --release
 
@@ -154,16 +154,21 @@ Once the bootstrap node is running, you can manage it remotely from your user de
 
 ```bash
 # Connect to bootstrap node
-dafs-cli remote-connect "192.168.1.100" 2094 "admin" "secure_password_here"
+dafs remoteconnect 192.168.1.100 2094 admin secure_password_here
 
-# This creates a persistent connection for remote management
+# Or using interactive CLI
+dafs --cli
+dafs(guest)> remoteconnect 192.168.1.100 2094 admin secure_password_here
 ```
 
 #### 2. Check Service Status
 
 ```bash
 # Get service status
-dafs-cli remote-status
+dafs remotestatus
+
+# Or using interactive CLI
+dafs(guest)> remotestatus
 
 # Output example:
 # Service ID: dafs-bootstrap-12345
@@ -181,76 +186,98 @@ dafs-cli remote-status
 
 ```bash
 # Add bootstrap node
-dafs-cli remote-bootstrap "add" "QmBootstrap1" "/ip4/1.2.3.4/tcp/2093"
+dafs remotebootstrap add QmBootstrap1 /ip4/1.2.3.4/tcp/2093
 
 # Remove bootstrap node
-dafs-cli remote-bootstrap "remove" "QmBootstrap1"
+dafs remotebootstrap remove QmBootstrap1
 
 # List bootstrap nodes
-dafs-cli remote-bootstrap "list"
+dafs remotebootstrap list
+
+# Or using interactive CLI
+dafs(guest)> remotebootstrap add QmBootstrap1 /ip4/1.2.3.4/tcp/2093
+dafs(guest)> remotebootstrap list
 ```
 
 #### 4. Service Control
 
 ```bash
 # Restart service
-dafs-cli remote-restart
+dafs remoterestart
 
 # Stop service
-dafs-cli remote-stop
+dafs remotestop
 
 # Start service
-dafs-cli remote-start
+dafs remotestart
+
+# Or using interactive CLI
+dafs(guest)> remoterestart
+dafs(guest)> remotestop
+dafs(guest)> remotestart
 ```
 
 #### 5. Configuration Management
 
 ```bash
 # Update configuration
-dafs-cli remote-config "log_level" "debug"
-dafs-cli remote-config "max_connections" "200"
+dafs remoteconfig log_level debug
+dafs remoteconfig max_connections 200
 
 # Get configuration
-dafs-cli remote-config-get "log_level"
-dafs-cli remote-config-get  # List all config
+dafs remoteconfigget log_level
+dafs remoteconfigget  # List all config
+
+# Or using interactive CLI
+dafs(guest)> remoteconfig log_level debug
+dafs(guest)> remoteconfigget log_level
 ```
 
 #### 6. Logs and Monitoring
 
 ```bash
 # View logs
-dafs-cli remote-logs 50  # Last 50 lines
-dafs-cli remote-logs 100 # Last 100 lines
+dafs remotelogs 50  # Last 50 lines
+dafs remotelogs 100 # Last 100 lines
 
 # Execute custom commands
-dafs-cli remote-exec "peers list"
-dafs-cli remote-exec "files count"
-dafs-cli remote-exec "system info"
+dafs remoteexec "peers list"
+dafs remoteexec "files count"
+dafs remoteexec "system info"
+
+# Or using interactive CLI
+dafs(guest)> remotelogs 50
+dafs(guest)> remoteexec "peers list"
 ```
 
 #### 7. Backup and Restore
 
 ```bash
 # Create backup
-dafs-cli remote-backup "/opt/dafs/backups/backup_$(date +%Y%m%d).tar.gz"
+dafs remotebackup /opt/dafs/backups/backup_$(date +%Y%m%d).tar.gz
 
 # Restore from backup
-dafs-cli remote-restore "/opt/dafs/backups/backup_20240115.tar.gz"
+dafs remoterestore /opt/dafs/backups/backup_20240115.tar.gz
+
+# Or using interactive CLI
+dafs(guest)> remotebackup /opt/dafs/backups/backup_$(date +%Y%m%d).tar.gz
+dafs(guest)> remoterestore /opt/dafs/backups/backup_20240115.tar.gz
 ```
 
 ### Interactive Remote Shell
 
 ```bash
 # Start interactive remote management shell
-dafs-cli remote-shell
+dafs remoteshell
+
+# Or using interactive CLI
+dafs --cli
+dafs(guest)> remoteshell
 
 # In the remote shell:
 # > status
 # > peers list
 # > config get log_level
-# > logs 20
-# > restart
-# > exit
 ```
 
 ## Security Considerations
@@ -276,7 +303,7 @@ sudo ufw allow from YOUR_MANAGEMENT_IP to any port 2094
 openssl rand -base64 32
 
 # Update configuration
-dafs-cli remote-config "admin_password" "generated_secure_password"
+dafs remoteconfig admin_password generated_secure_password
 ```
 
 ### 3. SSL/TLS (Optional)
@@ -287,22 +314,22 @@ dafs-cli remote-config "admin_password" "generated_secure_password"
 openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
 
 # Update configuration
-dafs-cli remote-config "ssl_enabled" "true"
-dafs-cli remote-config "ssl_cert" "/opt/dafs/certs/cert.pem"
-dafs-cli remote-config "ssl_key" "/opt/dafs/certs/key.pem"
+dafs remoteconfig ssl_enabled true
+dafs remoteconfig ssl_cert /opt/dafs/certs/cert.pem
+dafs remoteconfig ssl_key /opt/dafs/certs/key.pem
 ```
 
 ### 4. Access Control
 
 ```bash
 # Restrict allowed IPs
-dafs-cli remote-config "allowed_ips" "192.168.1.50,192.168.1.51"
+dafs remoteconfig allowed_ips 192.168.1.50,192.168.1.51
 
 # Set rate limiting
-dafs-cli remote-config "rate_limit" "50"
+dafs remoteconfig rate_limit 50
 
 # Session timeout
-dafs-cli remote-config "session_timeout" "1800"  # 30 minutes
+dafs remoteconfig session_timeout 1800  # 30 minutes
 ```
 
 ## Monitoring and Maintenance
@@ -425,7 +452,7 @@ sudo netstat -tlnp | grep 2094
 sudo ufw status
 
 # Check allowed IPs in config
-dafs-cli remote-config-get "allowed_ips"
+dafs remoteconfigget allowed_ips
 ```
 
 #### 3. Authentication Failed
@@ -448,21 +475,21 @@ dafs --recovery-mode --reset-admin-password
 top -p $(pgrep dafs)
 
 # Check peer connections
-dafs-cli remote-exec "peers list"
+dafs remoteexec "peers list"
 
 # Reduce max connections
-dafs-cli remote-config "max_connections" "50"
+dafs remoteconfig max_connections 50
 ```
 
 ### Debug Mode
 
 ```bash
 # Enable debug logging
-dafs-cli remote-config "log_level" "debug"
-dafs-cli remote-restart
+dafs remoteconfig log_level debug
+dafs remoterestart
 
 # View debug logs
-dafs-cli remote-logs 100
+dafs remotelogs 100
 ```
 
 ### Recovery Procedures
@@ -480,7 +507,7 @@ sudo systemctl start dafs-bootstrap
 
 ```bash
 # Restore from backup
-dafs-cli remote-restore "/opt/dafs/backups/dafs_backup_20240115_120000.tar.gz"
+dafs remoterestore "/opt/dafs/backups/dafs_backup_20240115_120000.tar.gz"
 
 # Or manually restore
 sudo systemctl stop dafs-bootstrap
@@ -574,7 +601,7 @@ EOF
 
 echo "Bootstrap node deployed successfully!"
 echo "Admin password: $ADMIN_PASSWORD"
-echo "Connect with: dafs-cli remote-connect $BOOTSTRAP_IP 2094 admin '$ADMIN_PASSWORD'"
+echo "Connect with: dafs remoteconnect $BOOTSTRAP_IP 2094 admin '$ADMIN_PASSWORD'"
 ```
 
 This comprehensive guide provides everything needed to set up, deploy, and manage DAFS bootstrap nodes remotely, ensuring reliable operation of your decentralized file system network. 

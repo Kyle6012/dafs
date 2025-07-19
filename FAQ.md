@@ -44,6 +44,6 @@ A: See CONTRIBUTING.md.
 A: See docs/API.md.
 
 ## More Help
-- GitHub Issues: https://github.com/your-repo/dafs/issues
-- Discussions: https://github.com/your-repo/dafs/discussions
-- Wiki: https://github.com/your-repo/dafs/wiki 
+- GitHub Issues: https://github.com/Kyle6012/dafs/issues
+- Discussions: https://github.com/Kyle6012/dafs/discussions
+- Wiki: https://github.com/Kyle6012/dafs/wiki 

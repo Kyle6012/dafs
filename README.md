@@ -157,7 +157,7 @@ sudo pacman -S base-devel
 
 3. **Download DAFS**:
    ```bash
-   git clone https://github.com/your-username/dafs.git
+   git clone https://github.com/Kyle6012/dafs.git
    cd dafs
    ```
 
@@ -176,27 +176,42 @@ sudo pacman -S base-devel
 
 ### Step 3: Start DAFS for the First Time
 
-1. **Start DAFS**:
+1. **Start DAFS with web dashboard**:
    ```bash
-   ./target/release/dafs
+   ./target/release/dafs --web
    ```
 
 2. **You should see something like this**:
    ```
-   🚀 Starting DAFS node in integrated mode...
-   ✅ DAFS node started in integrated mode!
-      HTTP API: http://127.0.0.1:6543
-      gRPC: grpc://[::1]:50051
-      Web Dashboard: Use 'dafs cli startweb' to start
-      Use Ctrl+C to stop
+   🚀 Starting DAFS services...
+   ✅ HTTP API server started on port 6543
+   ✅ gRPC server started on port 50051
+   ✅ Web dashboard server started on port 3093
+   ✅ P2P network started on port 2093
    ```
 
-3. **In a new terminal window, start the web dashboard**:
+3. **Open your web browser** and go to: `http://localhost:3093`
+
+### Alternative: Using the Interactive CLI
+
+1. **Start the interactive CLI**:
    ```bash
-   ./target/release/dafs cli startweb
+   ./target/release/dafs --cli
    ```
 
-4. **Open your web browser** and go to: `http://localhost:3093`
+2. **You'll see the DAFS interactive shell**:
+   ```
+   🚀 DAFS - Decentralized Authenticated File System
+   Welcome to DAFS Interactive Shell!
+   Type 'help' for available commands, 'exit' to quit.
+   
+   dafs(guest)> 
+   ```
+
+3. **Start the web dashboard from the CLI**:
+   ```
+   dafs(guest)> startweb
+   ```
 
 ## 👤 Creating Your First Account
 
@@ -214,14 +229,30 @@ sudo pacman -S base-devel
 ### Option 2: Using the Command Line
 
 1. **Open a new terminal window**
-2. **Register a new user**:
+2. **Start the interactive CLI**:
    ```bash
-   ./target/release/dafs cli register-user "alice" "Alice Johnson" "alice@example.com"
+   ./target/release/dafs --cli
    ```
-3. **Login**:
-   ```bash
-   ./target/release/dafs cli login-user "alice"
+3. **Register a new user**:
    ```
+   dafs(guest)> register alice
+   Password: [enter your password]
+   ```
+4. **Login**:
+   ```
+   dafs(guest)> login alice
+   Password: [enter your password]
+   ```
+
+### Option 3: Using Direct Commands
+
+```bash
+# Register a new user
+./target/release/dafs register alice
+
+# Login
+./target/release/dafs login alice
+```
 
 ## 📁 Your First File Upload
 
@@ -241,458 +272,103 @@ sudo pacman -S base-devel
 6. **Click "Upload"**
 7. **Wait for the upload to complete** (you'll see a progress bar)
 
-### Using the Command Line:
+### Using the Interactive CLI:
+
+```bash
+# Start the CLI
+./target/release/dafs --cli
+
+# Upload a file with tags
+dafs(guest)> upload my_document.pdf --tags work important
+
+# List your files
+dafs(guest)> files
+
+# Download a file
+dafs(guest)> download file_1234567890
+```
+
+### Using Direct Commands:
 
 ```bash
 # Upload a file with tags
-./target/release/dafs cli upload "my_document.pdf" "work" "important"
+./target/release/dafs upload my_document.pdf --tags work important
 
 # List your files
-./target/release/dafs cli files
+./target/release/dafs files
 
 # Download a file
-./target/release/dafs cli download "file_1234567890"
+./target/release/dafs download file_1234567890
 ```
 
-## 🌐 Connecting with Other Users
-
-### Finding Other DAFS Users
-
-DAFS automatically finds other users in several ways:
-
-1. **Local Network**: Automatically finds other DAFS users on your WiFi network
-2. **Internet Discovery**: Finds users across the internet using a special network
-3. **Bootstrap Nodes**: Connects to trusted servers that help find other users
-4. **Manual Connection**: Connect directly to someone you know
-
-### Using the Web Interface:
-
-1. **Click on "Peer Discovery"** in the navigation
-2. **Click "Discover Peers"** to find users on the network
-3. **Click "Scan Local Network"** to find users on your WiFi
-4. **You'll see a list of discovered users**
-
-### Using the Command Line:
-
-```bash
-# Discover peers on the network
-./target/release/dafs cli discover-peers
-
-# Scan your local network
-./target/release/dafs cli scan-local-peers
-
-# List all known peers
-./target/release/dafs cli list-known-peers
-
-# Connect to a specific peer (if you know their ID)
-./target/release/dafs cli connect-peer "QmPeerId123..."
-```
-
-## 💬 Sending Your First Message
-
-### Using the Web Interface:
-
-1. **Click on "Messaging"** in the navigation
-2. **You'll see a list of users** on the left side
-3. **Click on a user** to start chatting
-4. **Type your message** in the text box at the bottom
-5. **Press Enter** to send
-
-### Using the Command Line:
-
-```bash
-# Send a direct message
-./target/release/dafs cli send-message "bob" "Hello! How are you?"
-
-# Start the interactive messaging shell
-./target/release/dafs cli messaging-shell
-```
-
-### Interactive Messaging Shell
-
-The messaging shell is like a chat app in your terminal:
-
-```bash
-./target/release/dafs cli messaging-shell
-```
-
-**Available commands in the shell:**
-- `send alice Hello there!` - Send a message to Alice
-- `peers list` - See all available users
-- `status set Working on project` - Set your status
-- `room create Team Chat alice bob` - Create a group chat
-- `help` - See all available commands
-- `exit` - Leave the messaging shell
-
-## 🤖 AI-Powered Features
-
-DAFS includes artificial intelligence that learns from your file usage:
-
-### Getting File Recommendations
-
-1. **Upload several files** with different tags
-2. **Go to "AI Operations"** in the web interface
-3. **Click "Train Model"** to teach the AI about your files
-4. **Click "Get Recommendations"** to see AI suggestions
-
-### Using the Command Line:
-
-```bash
-# Train the AI model with your files
-./target/release/dafs cli train-ai
-
-# Get AI recommendations
-./target/release/dafs cli get-recommendations
-```
-
-## 🔧 Advanced Features
-
-### Chat Rooms (Group Chats)
-
-Create group conversations with multiple users:
-
-```bash
-# Create a chat room
-./target/release/dafs cli create-room "Project Team" "alice" "bob" "charlie"
-
-# Join an existing room
-./target/release/dafs cli join-room "room_1234567890"
-
-# Send a message to the room
-./target/release/dafs cli send-room-message "room_1234567890" "Hello everyone!"
-```
-
-### File Sharing
-
-Share files with specific users:
-
-```bash
-# Share a file with a user
-./target/release/dafs cli share "file_1234567890" "bob"
-
-# List files shared with you
-./target/release/dafs cli shared-files
-```
-
-### User Management
-
-Manage your account and devices:
-
-```bash
-# Change your username
-./target/release/dafs cli change-username "alice_new"
-
-# See all your devices
-./target/release/dafs cli list-devices
-
-# Remove a device (if you lost your phone, etc.)
-./target/release/dafs cli remove-device "device_1234567890"
-
-# Search for other users
-./target/release/dafs cli search-users "bob"
-```
-
-### Bootstrap Nodes (Advanced)
-
-Bootstrap nodes help you find other users on the internet:
-
-```bash
-# Add a bootstrap node (you'll get these from other DAFS users)
-./target/release/dafs cli add-bootstrap "QmBootstrapPeer" "/ip4/1.2.3.4/tcp/2093"
-
-# List your bootstrap nodes
-./target/release/dafs cli list-bootstrap
-
-# Remove a bootstrap node
-./target/release/dafs cli remove-bootstrap "QmBootstrapPeer"
-```
-
-## 🛠️ Troubleshooting
-
-### DAFS Won't Start
-
-**Problem**: You get an error when trying to start DAFS
-
-**Solutions**:
-1. **Check if ports are in use**:
-   ```bash
-   # On Linux/macOS
-   netstat -tulpn | grep :6543
-   netstat -tulpn | grep :50051
-   
-   # On Windows
-   netstat -an | findstr :6543
-   netstat -an | findstr :50051
-   ```
-
-2. **Kill processes using the ports**:
-   ```bash
-   # On Linux/macOS
-   sudo kill -9 $(lsof -t -i:6543)
-   sudo kill -9 $(lsof -t -i:50051)
-   ```
-
-3. **Check if you have the right permissions**:
-   ```bash
-   chmod +x target/release/dafs
-   ```
-
-### Can't Find Other Users
-
-**Problem**: You're not seeing other DAFS users
-
-**Solutions**:
-1. **Make sure you're on the same network** (for local discovery)
-2. **Try manual discovery**:
-   ```bash
-   ./target/release/dafs cli discover-peers
-   ```
-3. **Add bootstrap nodes** (ask other DAFS users for their node addresses)
-4. **Check your firewall** - make sure ports 2093, 6543, and 50051 are open
-
-### Web Interface Won't Load
-
-**Problem**: Browser shows an error when accessing the web dashboard
-
-**Solutions**:
-1. **Make sure the web dashboard is running**:
-   ```bash
-   ./target/release/dafs cli startweb
-   ```
-2. **Check the URL**: Make sure you're going to `http://localhost:3093`
-3. **Try a different browser**
-4. **Clear your browser cache**
-
-### Files Won't Upload
-
-**Problem**: File uploads fail or are very slow
-
-**Solutions**:
-1. **Check your internet connection**
-2. **Try a smaller file first** (under 1MB)
-3. **Check available disk space**:
-   ```bash
-   df -h
-   ```
-4. **Restart DAFS**:
-   ```bash
-   # Stop DAFS (Ctrl+C)
-   # Then start it again
-   ./target/release/dafs
-   ```
-
-## 📚 Complete Command Reference
-
-### Basic Commands
-```bash
-./target/release/dafs cli --help                    # Show all commands
-./target/release/dafs cli --version                 # Show version
-./target/release/dafs cli start                     # Start all services
-./target/release/dafs cli stop                      # Stop all services
-./target/release/dafs cli startweb                  # Start web dashboard
-./target/release/dafs cli startapi                  # Start API server
-```
-
-### User Management
-```bash
-./target/release/dafs cli register-user "username" "Display Name" "email"
-./target/release/dafs cli login-user "username"
-./target/release/dafs cli logout-device
-./target/release/dafs cli who-am-i
-./target/release/dafs cli list-all-users
-./target/release/dafs cli search-users "query"
-./target/release/dafs cli change-username "new_username"
-./target/release/dafs cli list-devices
-./target/release/dafs cli remove-device "device_id"
-```
+## 🔧 CLI Commands Overview
+
+DAFS provides a comprehensive command-line interface with the following main categories:
+
+### Service Management
+- `dafs --web` - Start all services with web dashboard
+- `dafs --cli` - Start interactive CLI shell
+- `dafs startweb` - Start web dashboard server
+- `dafs stopweb` - Stop web dashboard server
+- `dafs startapi` - Start HTTP API server
+- `dafs stopapi` - Stop HTTP API server
+- `dafs startgrpc` - Start gRPC server
+- `dafs stopgrpc` - Stop gRPC server
+
+### Authentication
+- `dafs register <username>` - Register new user account
+- `dafs login <username>` - Login with username
+- `dafs logout` - Logout from current session
 
 ### File Operations
-```bash
-./target/release/dafs cli upload "file.txt" "tag1" "tag2"
-./target/release/dafs cli download "file_id"
-./target/release/dafs cli files
-./target/release/dafs cli share "file_id" "username"
-./target/release/dafs cli p2p-files
-./target/release/dafs cli p2p-download "file_id" "peer_id"
-```
+- `dafs upload <file> --tags <tag1> <tag2>...` - Upload file with tags
+- `dafs download <file_id>` - Download file by ID
+- `dafs share <file_id> <username>` - Share file with user
+- `dafs files` - List all files
 
-### Peer Discovery
-```bash
-./target/release/dafs cli discover-peers
-./target/release/dafs cli scan-local-peers
-./target/release/dafs cli list-known-peers
-./target/release/dafs cli connect-peer "peer_id"
-./target/release/dafs cli ping-peer "peer_id"
-./target/release/dafs cli remove-peer "peer_id"
-./target/release/dafs cli add-bootstrap "peer_id" "address"
-./target/release/dafs cli list-bootstrap
-./target/release/dafs cli remove-bootstrap "peer_id"
-./target/release/dafs cli peer-history
-```
+### Peer Management
+- `dafs peers` - List known peers
+- `dafs addbootstrap <peer> <addr>` - Add bootstrap node
+- `dafs removebootstrap <peer>` - Remove bootstrap node
+- `dafs listbootstrap` - List all bootstrap nodes
 
-### Messaging
-```bash
-./target/release/dafs cli messaging-shell
-./target/release/dafs cli send-message "username" "message"
-./target/release/dafs cli create-room "name" "user1" "user2"
-./target/release/dafs cli join-room "room_id"
-./target/release/dafs cli send-room-message "room_id" "message"
-./target/release/dafs cli list-rooms
-./target/release/dafs cli list-messages "room_id"
-./target/release/dafs cli set-status "status message"
-./target/release/dafs cli list-users
-```
+### AI Operations
+- `dafs aitrain` - Train AI recommendation model
+- `dafs airecommend <user_id>` - Get file recommendations
+- `dafs aiaggregate <model_path>` - Aggregate remote model
+- `dafs aiexport <output_path>` - Export local AI model
 
-### AI Features
-```bash
-./target/release/dafs cli train-ai
-./target/release/dafs cli get-recommendations
-./target/release/dafs cli export-model "model_name"
-./target/release/dafs cli import-model "model_file"
-```
+### Interactive Shell Commands
+When using `dafs --cli`, you have access to all the above commands plus:
+- `help` - Show comprehensive help
+- `clear` - Clear screen
+- `exit` or `quit` - Exit shell
 
-## 🔒 Security and Privacy
+For a complete list of commands, run `dafs --cli` and type `help`.
 
-### How DAFS Protects Your Data
+## 🌐 Repository Information
 
-1. **End-to-End Encryption**: All messages and files are encrypted before they leave your device
-2. **No Central Server**: Your data never goes through a central server that could be hacked
-3. **User Authentication**: Only users you approve can access your shared files
-4. **Device Management**: You can see and control all devices that access your account
-5. **Session Management**: Secure login sessions with automatic logout
+- **Repository**: https://github.com/Kyle6012/dafs
+- **Documentation**: See the links at the top of this README
+- **Issues**: https://github.com/Kyle6012/dafs/issues
+- **Discussions**: https://github.com/Kyle6012/dafs/discussions
 
-### Best Practices
+## 🤝 Contributing
 
-1. **Use Strong Usernames**: Don't use your real name as your username
-2. **Keep Your Device Secure**: Use a password on your computer/phone
-3. **Be Careful with Sharing**: Only share files with people you trust
-4. **Regular Updates**: Keep DAFS updated for security patches
-5. **Backup Important Files**: Don't rely solely on DAFS for critical files
-
-## 🌍 Network Architecture
-
-### How DAFS Finds Other Users
-
-1. **Local Network (mDNS)**: Automatically finds DAFS users on your WiFi network
-2. **Distributed Hash Table (DHT)**: Finds users across the internet using a peer-to-peer network
-3. **Bootstrap Nodes**: Connects to trusted servers that help find other users
-4. **Manual Connection**: Direct connection to users you know
-
-### Network Ports
-
-DAFS uses these ports:
-- **2093**: P2P communication between nodes
-- **6543**: Web API for the dashboard
-- **50051**: gRPC for high-performance communication
-- **3093**: Web dashboard interface
-
-### Firewall Configuration
-
-If you're behind a firewall, you may need to open these ports:
-- **TCP 2093**: For P2P communication
-- **TCP 6543**: For web API
-- **TCP 50051**: For gRPC
-- **TCP 3093**: For web dashboard
-
-## 🚀 Advanced Configuration
-
-### Configuration Files
-
-DAFS stores configuration in several files:
-- `bootstrap_nodes.json`: List of trusted bootstrap nodes
-- `discovered_peers.json`: Peers you've discovered
-- `users/`: User account data
-- `device_memory/`: Device-specific peer memory
-- `files/`: Local file storage
-
-### Customizing DAFS
-
-You can customize DAFS behavior by editing configuration files or using environment variables:
-
-```bash
-# Set custom ports
-export DAFS_API_PORT=8080
-export DAFS_GRPC_PORT=50052
-export DAFS_WEB_PORT=3000
-
-# Start DAFS with custom settings
-./target/release/dafs
-```
-
-## 🤝 Contributing to DAFS
-
-### How to Help
-
-1. **Report Bugs**: If you find a problem, report it on GitHub
-2. **Suggest Features**: Share ideas for new features
-3. **Help Others**: Answer questions in the community
-4. **Contribute Code**: If you're a programmer, help improve DAFS
-
-### Development Setup
-
-If you want to help develop DAFS:
-
-```bash
-# Clone the repository
-git clone https://github.com/your-username/dafs.git
-cd dafs
-
-# Install development dependencies
-cargo install cargo-watch
-cargo install cargo-audit
-
-# Run tests
-cargo test
-
-# Check code quality
-cargo clippy
-cargo audit
-
-# Run in development mode
-cargo run
-```
-
-## 📞 Getting Help
-
-### Where to Find Help
-
-1. **GitHub Issues**: Report bugs and request features
-2. **GitHub Discussions**: Ask questions and share ideas
-3. **Documentation**: Read the detailed guides
-4. **Community**: Join the DAFS community
-
-### Common Questions
-
-**Q: Is DAFS free to use?**
-A: Yes! DAFS is completely free and open source.
-
-**Q: Do I need internet to use DAFS?**
-A: You need internet to find other users, but once connected, you can share files locally.
-
-**Q: Is my data safe?**
-A: Yes, all data is encrypted and never stored on central servers.
-
-**Q: Can I use DAFS on my phone?**
-A: Currently DAFS runs on computers, but mobile support is planned.
-
-**Q: What happens if I lose my device?**
-A: You can log in from another device and access your files (if they were shared).
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute to DAFS.
 
 ## 📄 License
 
-DAFS is licensed under the MIT License, which means you can use it freely for personal and commercial purposes.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## 🆘 Support
 
-DAFS was built using many open-source technologies:
-- **Rust**: For the backend system
-- **React**: For the web interface
-- **libp2p**: For peer-to-peer networking
-- **SQLite**: For local data storage
-- **And many more**: See the full list in Cargo.toml
+- **Documentation**: Check the documentation links above
+- **FAQ**: See [FAQ.md](FAQ.md) for common questions
+- **Issues**: Report bugs at https://github.com/Kyle6012/dafs/issues
+- **Discussions**: Ask questions at https://github.com/Kyle6012/dafs/discussions
 
 ---
 
-**Welcome to the decentralized future of file sharing!** 🚀
-
-Start exploring DAFS today and discover a new way to share files, communicate, and collaborate without relying on big tech companies.
+**DAFS** - Decentralized Authenticated File System  
+**Repository**: https://github.com/Kyle6012/dafs

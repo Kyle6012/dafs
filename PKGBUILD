@@ -1,10 +1,10 @@
-# Maintainer: Your Name <your.email@example.com>
+# Maintainer: Your <bahatikylemeshack@gmail.coms>
 pkgname=dafs
 pkgver=0.1.0
 pkgrel=1
 pkgdesc="Decentralized AI File System with integrated web dashboard"
 arch=('x86_64')
-url="https://github.com/your-repo/dafs"
+url="https://github.com/Kyle6012/dafs"
 license=('MIT')
 depends=('nodejs>=18.0.0' 'npm')
 makedepends=('rust' 'cargo' 'git')
@@ -21,12 +21,6 @@ prepare() {
 build() {
     cd "$srcdir/$pkgname"
     
-    # Build web dashboard
-    cd web
-    npm run build
-    cd ..
-    
-    # Build Rust backend
     cargo build --release
 }
 

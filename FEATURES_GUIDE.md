@@ -80,10 +80,11 @@ When you download a file:
 #### Tags and Categories
 ```bash
 # Upload with tags
-./target/release/dafs cli upload "work_report.pdf" "work" "important" "reports"
+./target/release/dafs upload work_report.pdf --tags work important reports
 
-# Search by tags
-./target/release/dafs cli search-files "work"
+# Or using interactive CLI
+./target/release/dafs --cli
+dafs(guest)> upload work_report.pdf --tags work important reports
 ```
 
 #### File Metadata
@@ -106,10 +107,10 @@ When you download a file:
 #### Sharing with Specific Users
 ```bash
 # Share a file with a user
-./target/release/dafs cli share "file_1234567890" "bob"
+./target/release/dafs share file_1234567890 bob
 
-# Share with multiple users
-./target/release/dafs cli share "file_1234567890" "bob" "alice" "charlie"
+# Or using interactive CLI
+dafs(guest)> share file_1234567890 bob
 ```
 
 #### Permission Levels
@@ -129,16 +130,19 @@ When you download a file:
 #### Discovering Files from Peers
 ```bash
 # List files available from peers
-./target/release/dafs cli p2p-files
+./target/release/dafs p2pfiles
 
-# Search for specific files
-./target/release/dafs cli search-p2p-files "document"
+# Or using interactive CLI
+dafs(guest)> p2pfiles
 ```
 
 #### Downloading from Peers
 ```bash
 # Download a file from a specific peer
-./target/release/dafs cli p2p-download "file_1234567890" "QmPeerId123..."
+./target/release/dafs p2pdownload file_1234567890 QmPeerId123...
+
+# Or using interactive CLI
+dafs(guest)> p2pdownload file_1234567890 QmPeerId123...
 ```
 
 #### File Synchronization
@@ -167,10 +171,10 @@ When you download a file:
 #### Sending Messages
 ```bash
 # Send a direct message
-./target/release/dafs cli send-message "bob" "Hello! How are you?"
+./target/release/dafs sendmessage bob "Hello! How are you?"
 
-# Send with emoji and formatting
-./target/release/dafs cli send-message "alice" "Great work on the project! 🎉"
+# Or using interactive CLI
+dafs(guest)> sendmessage bob "Hello! How are you?"
 ```
 
 #### Message Features
@@ -185,25 +189,23 @@ When you download a file:
 #### Creating Chat Rooms
 ```bash
 # Create a chat room
-./target/release/dafs cli create-room "Project Team" "alice" "bob" "charlie"
+./target/release/dafs createroom "Project Team" alice bob charlie
 
-# Create a room with description
-./target/release/dafs cli create-room "Family Chat" "mom" "dad" "sister" --description "Family updates and photos"
+# Or using interactive CLI
+dafs(guest)> createroom "Project Team" alice bob charlie
 ```
 
 #### Managing Chat Rooms
 ```bash
 # Join an existing room
-./target/release/dafs cli join-room "room_1234567890"
+./target/release/dafs joinroom room_1234567890
 
 # Send message to room
-./target/release/dafs cli send-room-message "room_1234567890" "Hello everyone!"
+./target/release/dafs sendroommessage room_1234567890 "Hello everyone!"
 
-# List all rooms
-./target/release/dafs cli list-rooms
-
-# View room messages
-./target/release/dafs cli list-messages "room_1234567890"
+# Or using interactive CLI
+dafs(guest)> joinroom room_1234567890
+dafs(guest)> sendroommessage room_1234567890 "Hello everyone!"
 ```
 
 #### Room Features

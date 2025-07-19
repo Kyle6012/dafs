@@ -113,17 +113,17 @@ fn print_warn(msg: &str) {
 #[derive(Parser)]
 #[command(name = "dafs")]
 #[command(about = "Decentralized AI File System - A secure, distributed file storage system with AI-powered recommendations")]
-struct Cli {
+pub struct Cli {
     /// Start interactive CLI shell
     #[arg(long, short)]
-    cli: bool,
+    pub cli: bool,
     
     #[command(subcommand)]
-    command: Option<Commands>,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
-enum Commands {
+pub enum Commands {
     Start,
     Stop,
     Web,
@@ -640,11 +640,11 @@ async fn handle_messaging_command(input: &str) -> Result<(), String> {
                             return Err("Not logged in on this device".to_string());
                         }
                     };
-                    println!("👤 Current User: {} ({})", user.username, user.user_id);
-                    println!("📱 Device: {}", device_id);
-                    println!("🕒 Last seen: {}", chrono::DateTime::<chrono::Utc>::from(
-                        std::time::UNIX_EPOCH + std::time::Duration::from_secs(user.last_seen)
-                    ).format("%Y-%m-%d %H:%M:%S"));
+                        println!("👤 Current User: {} ({})", user.username, user.user_id);
+                        println!("📱 Device: {}", device_id);
+                        println!("🕒 Last seen: {}", chrono::DateTime::<chrono::Utc>::from(
+                            std::time::UNIX_EPOCH + std::time::Duration::from_secs(user.last_seen)
+                        ).format("%Y-%m-%d %H:%M:%S"));
                 }
                 _ => return Err("Unknown status command. Use: set or show".to_string()),
             }
@@ -708,7 +708,7 @@ pub async fn run_repl() {
                     Ok(cli) => {
                         if let Some(command) = cli.command {
                             if let Err(e) = dispatch_command(command).await {
-                                print_error(&format!("Error: {}", e));
+                            print_error(&format!("Error: {}", e));
                             }
                         } else {
                             print_error("No command specified");
@@ -731,61 +731,61 @@ pub async fn run_repl() {
     }
 }
 
-async fn dispatch_command(command: Commands) -> Result<(), String> {
+pub async fn dispatch_command(command: Commands) -> Result<(), String> {
         match &command {
-            Commands::Register { username } => {
-                let password = prompt_password("Password: ").unwrap();
-                let start = Instant::now();
-                match create_auth_client().await {
-                    Ok(mut client) => {
-                        let req = tonic::Request::new(RegisterRequest {
-                            username: username.clone(),
-                            password: password.clone(),
-                        });
-                        print_info("Registering user...");
-                        match client.register(req).await {
-                            Ok(resp) => {
-                                let resp = resp.into_inner();
-                                if resp.success {
-                                    print_success("Registration successful");
-                                } else {
-                                    print_error(&format!("Registration failed: {}", resp.message));
-                                }
+        Commands::Register { username } => {
+            let password = prompt_password("Password: ").unwrap();
+            let start = Instant::now();
+            match create_auth_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(RegisterRequest {
+                        username: username.clone(),
+                        password: password.clone(),
+                    });
+                    print_info("Registering user...");
+                    match client.register(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                print_success("Registration successful");
+                            } else {
+                                print_error(&format!("Registration failed: {}", resp.message));
                             }
-                            Err(e) => print_error(&format!("gRPC error: {}", e)),
                         }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
                     }
-                    Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
                 }
-                print_info(&format!("Done in {:.2?}", start.elapsed()));
-                Ok(())
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
             }
-            Commands::Login { username } => {
-                let password = prompt_password("Password: ").unwrap();
-                let start = Instant::now();
-                match create_auth_client().await {
-                    Ok(mut client) => {
-                        let req = tonic::Request::new(LoginRequest {
-                            username: username.clone(),
-                            password: password.clone(),
-                        });
-                        print_info("Logging in...");
-                        match client.login(req).await {
-                            Ok(resp) => {
-                                let resp = resp.into_inner();
-                                if resp.success {
-                                    save_session(username, &password);
-                                    print_success("Login successful");
-                                } else {
-                                    print_error(&format!("Login failed: {}", resp.message));
-                                }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+                Ok(())
+        }
+        Commands::Login { username } => {
+            let password = prompt_password("Password: ").unwrap();
+            let start = Instant::now();
+            match create_auth_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(LoginRequest {
+                        username: username.clone(),
+                        password: password.clone(),
+                    });
+                    print_info("Logging in...");
+                    match client.login(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                save_session(username, &password);
+                                print_success("Login successful");
+                            } else {
+                                print_error(&format!("Login failed: {}", resp.message));
                             }
-                            Err(e) => print_error(&format!("gRPC error: {}", e)),
                         }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
                     }
-                    Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
                 }
-                print_info(&format!("Done in {:.2?}", start.elapsed()));
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
                 Ok(())
             }
             // Commands::Help => {
@@ -794,161 +794,161 @@ async fn dispatch_command(command: Commands) -> Result<(), String> {
             //     print_info(&format!("Done in {:.2?}", start.elapsed()));
             //     Ok(())
             // }
-            Commands::AddBootstrap { peer, addr } => {
-                let start = Instant::now();
-                match create_p2p_client().await {
-                    Ok(mut client) => {
-                        let req = tonic::Request::new(BootstrapNodeRequest {
-                            peer_id: peer.clone(),
-                            address: addr.clone(),
-                        });
-                        print_info(&format!("Adding bootstrap node '{}' at {}", peer, addr));
-                        match client.add_bootstrap_node(req).await {
-                            Ok(resp) => {
-                                let resp = resp.into_inner();
-                                if resp.success {
-                                    print_success("Bootstrap node added");
-                                } else {
+        Commands::AddBootstrap { peer, addr } => {
+            let start = Instant::now();
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(BootstrapNodeRequest {
+                        peer_id: peer.clone(),
+                        address: addr.clone(),
+                    });
+                    print_info(&format!("Adding bootstrap node '{}' at {}", peer, addr));
+                    match client.add_bootstrap_node(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                print_success("Bootstrap node added");
+                            } else {
                                     print_error(&format!("Failed to add bootstrap node: {}", resp.message));
-                                }
                             }
-                            Err(e) => print_error(&format!("gRPC error: {}", e)),
                         }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
                     }
-                    Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
                 }
-                print_info(&format!("Done in {:.2?}", start.elapsed()));
-                Ok(())
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
             }
-            Commands::RemoveBootstrap { peer } => {
-                let start = Instant::now();
-                match create_p2p_client().await {
-                    Ok(mut client) => {
-                        let req = tonic::Request::new(BootstrapNodeRequest {
-                            peer_id: peer.clone(),
-                            address: "".to_string(),
-                        });
-                        print_info(&format!("Removing bootstrap node '{}'", peer));
-                        match client.remove_bootstrap_node(req).await {
-                            Ok(resp) => {
-                                let resp = resp.into_inner();
-                                if resp.success {
-                                    print_success("Bootstrap node removed");
-                                } else {
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+                Ok(())
+        }
+        Commands::RemoveBootstrap { peer } => {
+            let start = Instant::now();
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(BootstrapNodeRequest {
+                        peer_id: peer.clone(),
+                        address: "".to_string(),
+                    });
+                    print_info(&format!("Removing bootstrap node '{}'", peer));
+                    match client.remove_bootstrap_node(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                print_success("Bootstrap node removed");
+                            } else {
                                     print_error(&format!("Failed to remove bootstrap node: {}", resp.message));
-                                }
                             }
-                            Err(e) => print_error(&format!("gRPC error: {}", e)),
                         }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
                     }
-                    Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
                 }
-                print_info(&format!("Done in {:.2?}", start.elapsed()));
-                Ok(())
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
             }
-            Commands::ListBootstrap => {
-                let start = Instant::now();
-                match create_p2p_client().await {
-                    Ok(mut client) => {
-                        let req = tonic::Request::new(ListBootstrapNodesRequest {});
-                        print_info("Listing bootstrap nodes...");
-                        match client.list_bootstrap_nodes(req).await {
-                            Ok(resp) => {
-                                let resp = resp.into_inner();
-                                print_success("Bootstrap nodes:");
-                                for node in resp.nodes {
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+                Ok(())
+        }
+        Commands::ListBootstrap => {
+            let start = Instant::now();
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(ListBootstrapNodesRequest {});
+                    print_info("Listing bootstrap nodes...");
+                    match client.list_bootstrap_nodes(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            print_success("Bootstrap nodes:");
+                            for node in resp.nodes {
                                     println!("  {} -> {}", node.peer_id, node.address);
-                                }
                             }
-                            Err(e) => print_error(&format!("gRPC error: {}", e)),
                         }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
                     }
-                    Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
                 }
-                print_info(&format!("Done in {:.2?}", start.elapsed()));
-                Ok(())
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
             }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+                Ok(())
+        }
             Commands::Peers => {
-                let start = Instant::now();
+            let start = Instant::now();
                 print_info("Listing peers...");
                 // This would typically call a gRPC service
                 print_success("Peer discovery not yet implemented in interactive mode");
-                print_info(&format!("Done in {:.2?}", start.elapsed()));
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
                 Ok(())
-            }
+        }
             Commands::Files => {
-                let start = Instant::now();
+            let start = Instant::now();
                 print_info("Listing files...");
                 // This would typically call a gRPC service
                 print_success("File listing not yet implemented in interactive mode");
-                print_info(&format!("Done in {:.2?}", start.elapsed()));
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
                 Ok(())
-            }
-            Commands::Logout => {
-                let start = Instant::now();
+        }
+        Commands::Logout => {
+            let start = Instant::now();
                 print_info("Logging out...");
                 // Clear session
                 if let Err(_) = std::fs::remove_file(".dafs_session") {
                     print_warn("No active session found");
-                } else {
+            } else {
                     print_success("Logged out successfully");
-                }
-                print_info(&format!("Done in {:.2?}", start.elapsed()));
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
                 Ok(())
             }
-            Commands::AiTrain => {
-                let start = Instant::now();
-                match create_grpc_client().await {
-                    Ok(mut grpc_client) => {
-                        let request = tonic::Request::new(TrainRequest {
-                            interactions: vec![], // Empty means use all from storage
-                        });
-                        
-                        print_info("Training AI model...");
-                        match grpc_client.train_model(request).await {
-                            Ok(response) => {
-                                let resp = response.into_inner();
-                                if resp.success {
-                                    print_success(&format!("✅ AI model trained successfully (epoch: {})", resp.epoch));
-                                } else {
-                                    print_error(&format!("❌ Training failed: {}", resp.message));
-                                }
+        Commands::AiTrain => {
+            let start = Instant::now();
+            match create_grpc_client().await {
+                Ok(mut grpc_client) => {
+                    let request = tonic::Request::new(TrainRequest {
+                        interactions: vec![], // Empty means use all from storage
+                    });
+                    
+                    print_info("Training AI model...");
+                    match grpc_client.train_model(request).await {
+                        Ok(response) => {
+                            let resp = response.into_inner();
+                            if resp.success {
+                                print_success(&format!("✅ AI model trained successfully (epoch: {})", resp.epoch));
+                            } else {
+                                print_error(&format!("❌ Training failed: {}", resp.message));
                             }
-                            Err(e) => print_error(&format!("❌ gRPC error: {}", e)),
                         }
+                        Err(e) => print_error(&format!("❌ gRPC error: {}", e)),
                     }
-                    Err(e) => print_error(&format!("❌ Failed to connect to gRPC server: {}", e)),
                 }
-                print_info(&format!("Done in {:.2?}", start.elapsed()));
-                Ok(())
+                Err(e) => print_error(&format!("❌ Failed to connect to gRPC server: {}", e)),
             }
-            Commands::AiRecommend { user_id } => {
-                let start = Instant::now();
-                match create_grpc_client().await {
-                    Ok(mut grpc_client) => {
-                        let request = tonic::Request::new(RecommendationsRequest {
-                            user_id: user_id.clone(),
-                            top_n: 10,
-                        });
-                        
-                        print_info(&format!("Getting recommendations for user '{}'...", user_id));
-                        match grpc_client.get_recommendations(request).await {
-                            Ok(response) => {
-                                let resp = response.into_inner();
-                                print_success(&format!("📋 Recommendations for user '{}':", user_id));
-                                for (i, file) in resp.files.iter().enumerate() {
-                                    println!("  {}. {} ({} bytes)", i + 1, file.filename, file.size);
-                                    if !file.tags.is_empty() {
-                                        println!("     Tags: {}", file.tags.join(", "));
-                                    }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+                Ok(())
+        }
+        Commands::AiRecommend { user_id } => {
+            let start = Instant::now();
+            match create_grpc_client().await {
+                Ok(mut grpc_client) => {
+                    let request = tonic::Request::new(RecommendationsRequest {
+                        user_id: user_id.clone(),
+                        top_n: 10,
+                    });
+                    
+                    print_info(&format!("Getting recommendations for user '{}'...", user_id));
+                    match grpc_client.get_recommendations(request).await {
+                        Ok(response) => {
+                            let resp = response.into_inner();
+                            print_success(&format!("📋 Recommendations for user '{}':", user_id));
+                            for (i, file) in resp.files.iter().enumerate() {
+                                println!("  {}. {} ({} bytes)", i + 1, file.filename, file.size);
+                                if !file.tags.is_empty() {
+                                    println!("     Tags: {}", file.tags.join(", "));
                                 }
                             }
-                            Err(e) => print_error(&format!("❌ gRPC error: {}", e)),
                         }
+                        Err(e) => print_error(&format!("❌ gRPC error: {}", e)),
                     }
-                    Err(e) => print_error(&format!("❌ Failed to connect to gRPC server: {}", e)),
                 }
-                print_info(&format!("Done in {:.2?}", start.elapsed()));
+                Err(e) => print_error(&format!("❌ Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
                 Ok(())
             }
             Commands::MessagingShell => {
@@ -956,61 +956,61 @@ async fn dispatch_command(command: Commands) -> Result<(), String> {
                 // This would start a messaging-specific shell
                 print_success("Messaging shell not yet implemented in interactive mode");
                 Ok(())
-            }
-            Commands::StartWeb { port } => {
-                let start = Instant::now();
-                print_info(&format!("Starting web dashboard server on port {}...", port));
-                
-                // Start web dashboard as a separate process
-                let web_process = std::process::Command::new("cargo")
-                    .args(&["run", "--", "--web", "--web-port", &port.to_string()])
-                    .spawn();
-                
-                match web_process {
-                    Ok(mut child) => {
-                        // Save PID to a file for later stopping
-                        let pid_file = ".dafs_web.pid";
+        }
+        Commands::StartWeb { port } => {
+            let start = Instant::now();
+            print_info(&format!("Starting web dashboard server on port {}...", port));
+            
+            // Start web dashboard as a separate process
+            let web_process = std::process::Command::new("cargo")
+                .args(&["run", "--", "--web", "--web-port", &port.to_string()])
+                .spawn();
+            
+            match web_process {
+                Ok(mut child) => {
+                    // Save PID to a file for later stopping
+                    let pid_file = ".dafs_web.pid";
                         let pid = child.id();
                         if let Ok(_) = std::fs::write(pid_file, pid.to_string()) {
                             print_success(&format!("Web dashboard server started on port {} (PID: {})", port, pid));
                             print_info(&format!("PID saved to {}", pid_file));
                         } else {
                             print_warn("Failed to save PID file");
-                        }
-                        
-                        // Don't wait for the child process - let it run in background
-                        std::mem::drop(child);
                     }
-                    Err(e) => {
-                        print_error(&format!("Failed to start web dashboard server: {}", e));
-                        print_info("Make sure you're in the DAFS project directory");
-                    }
+                    
+                    // Don't wait for the child process - let it run in background
+                    std::mem::drop(child);
                 }
-                
-                print_info(&format!("Done in {:.2?}", start.elapsed()));
-                Ok(())
+                Err(e) => {
+                    print_error(&format!("Failed to start web dashboard server: {}", e));
+                    print_info("Make sure you're in the DAFS project directory");
+                }
             }
-            Commands::StopWeb => {
-                let start = Instant::now();
-                print_info("Stopping web dashboard server...");
-                
-                // Try to read PID from file and kill the process
-                let pid_file = ".dafs_web.pid";
-                match std::fs::read_to_string(pid_file) {
-                    Ok(pid_str) => {
-                        match pid_str.trim().parse::<u32>() {
-                            Ok(pid) => {
-                                // Try to kill the process gracefully first
-                                let kill_result = std::process::Command::new("kill")
-                                    .arg(&pid.to_string())
-                                    .output();
-                                
-                                match kill_result {
+            
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+                Ok(())
+        }
+        Commands::StopWeb => {
+            let start = Instant::now();
+            print_info("Stopping web dashboard server...");
+            
+            // Try to read PID from file and kill the process
+            let pid_file = ".dafs_web.pid";
+            match std::fs::read_to_string(pid_file) {
+                Ok(pid_str) => {
+                    match pid_str.trim().parse::<u32>() {
+                        Ok(pid) => {
+                            // Try to kill the process gracefully first
+                            let kill_result = std::process::Command::new("kill")
+                                .arg(&pid.to_string())
+                                .output();
+                            
+                            match kill_result {
                                     Ok(output) => {
                                         if output.status.success() {
-                                            print_success(&format!("Web dashboard server stopped (PID: {})", pid));
+                                    print_success(&format!("Web dashboard server stopped (PID: {})", pid));
                                             std::fs::remove_file(pid_file).ok();
-                                        } else {
+                        } else {
                                             print_error(&format!("Failed to stop web dashboard server: {}", String::from_utf8_lossy(&output.stderr)));
                                         }
                                     }
@@ -1021,9 +1021,9 @@ async fn dispatch_command(command: Commands) -> Result<(), String> {
                         }
                     }
                     Err(e) => print_error(&format!("Failed to read PID file: {}", e)),
-                }
-                
-                print_info(&format!("Done in {:.2?}", start.elapsed()));
+            }
+            
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
                 Ok(())
             }
             // Add more command handlers as needed
@@ -1034,40 +1034,10 @@ async fn dispatch_command(command: Commands) -> Result<(), String> {
         }
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let cli = Cli::parse();
-    
-    // Create a runtime for async operations
-    let rt = tokio::runtime::Runtime::new()?;
-    
-    // If --cli flag is provided or no arguments given, start interactive shell
-    if cli.cli || std::env::args().len() == 1 {
-        rt.block_on(run_repl());
-        return Ok(());
-    }
-    
-    // If no command provided, show help
-    let command = match cli.command {
-        Some(cmd) => cmd,
-        None => {
-            print_banner();
-            print_comprehensive_help();
-            return Ok(());
-        }
-    };
-    
-    print_banner();
-    let term = Term::stdout();
-    
-    // Use dispatch_command to handle all commands
-    let result = rt.block_on(dispatch_command(command));
-    
-    // Convert String error to Box<dyn std::error::Error>
-    result.map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)) as Box<dyn std::error::Error>)
-}
+// Main function removed - this module is now integrated with main.rs
 
 fn print_comprehensive_help() {
-    print_banner();
+                            print_banner();
     println!("{}", style("DAFS CLI - Interactive Shell Commands").bold().cyan());
     println!("{}", style("─".repeat(60)).dim());
     

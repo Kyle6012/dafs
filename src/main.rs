@@ -56,6 +56,10 @@ struct Cli {
     /// Run in integrated mode (start all services)
     #[arg(long, action = ArgAction::SetTrue)]
     integrated: bool,
+    
+    /// CLI subcommands
+    #[command(subcommand)]
+    command: Option<cli::Commands>,
 }
 
 #[tokio::main]
@@ -66,8 +70,15 @@ async fn main() -> anyhow::Result<()> {
     
     // If --cli flag is provided, start interactive shell
     if cli.cli {
-        cli::run_repl();
+        cli::run_repl().await;
         return Ok(());
+    }
+    
+    // If CLI command is provided, handle it
+    if let Some(command) = cli.command {
+        let rt = tokio::runtime::Runtime::new()?;
+        let result = rt.block_on(cli::dispatch_command(command));
+        return result.map_err(|e| anyhow::anyhow!(e));
     }
     
     // If no specific services are requested, run in integrated mode

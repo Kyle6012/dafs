@@ -8,7 +8,7 @@ This guide will walk you through every step of setting up DAFS (Decentralized Au
 - Send encrypted messages to other users
 - Discover and connect to other DAFS users
 - Use AI-powered file recommendations
-- Access everything through a web interface
+- Access everything through a web interface or command line
 
 ## 📋 Prerequisites Checklist
 
@@ -205,7 +205,7 @@ Before we start, make sure you have:
 
 3. **Download DAFS**:
    ```bash
-   git clone https://github.com/your-username/dafs.git
+   git clone https://github.com/Kyle6012/dafs.git
    cd dafs
    ```
 
@@ -279,42 +279,44 @@ Before we start, make sure you have:
 
 ## 🚀 Step 4: Starting DAFS for the First Time
 
-### 4.1 Start the Backend
+### 4.1 Start DAFS with Web Dashboard (Recommended)
 1. **In Terminal/Command Prompt**, run:
    ```bash
-   ./target/release/dafs  # On macOS/Linux
-   target\release\dafs.exe  # On Windows
+   ./target/release/dafs --web  # On macOS/Linux
+   target\release\dafs.exe --web  # On Windows
    ```
 
 2. **You should see output like**:
    ```
-   🚀 Starting DAFS node in integrated mode...
-   ✅ DAFS node started in integrated mode!
-      HTTP API: http://127.0.0.1:6543
-      gRPC: grpc://[::1]:50051
-      Web Dashboard: Use 'dafs cli startweb' to start
+   🚀 Starting DAFS services...
+   ✅ HTTP API server started on port 6543
+   ✅ gRPC server started on port 50051
+   ✅ Web dashboard server started on port 3093
+   ✅ P2P network started on port 2093
       Use Ctrl+C to stop
    ```
 
 3. **Keep this terminal window open** - DAFS is now running!
 
-### 4.2 Start the Web Dashboard
-1. **Open a new Terminal/Command Prompt window**
-2. **Navigate to your DAFS directory**:
+### 4.2 Alternative: Start Interactive CLI
+1. **In Terminal/Command Prompt**, run:
    ```bash
-   cd /path/to/your/dafs
+   ./target/release/dafs --cli  # On macOS/Linux
+   target\release\dafs.exe --cli  # On Windows
    ```
 
-3. **Start the web dashboard**:
-   ```bash
-   ./target/release/dafs cli startweb  # On macOS/Linux
-   target\release\dafs.exe cli startweb  # On Windows
+2. **You should see output like**:
+   ```
+   🚀 DAFS - Decentralized Authenticated File System
+   Welcome to DAFS Interactive Shell!
+   Type 'help' for available commands, 'exit' to quit.
+   
+   dafs(guest)> 
    ```
 
-4. **You should see output like**:
+3. **Start the web dashboard from the CLI**:
    ```
-   🌐 Starting web dashboard...
-   ✅ Web dashboard started on http://localhost:3093
+   dafs(guest)> startweb
    ```
 
 ### 4.3 Access the Web Interface
@@ -333,16 +335,34 @@ Before we start, make sure you have:
 3. **Click "Register"**
 4. **You're now logged in!**
 
-### 5.2 Using the Command Line
+### 5.2 Using the Interactive CLI
+1. **Start the interactive CLI**:
+   ```bash
+   ./target/release/dafs --cli
+   ```
+
+2. **Register a new user**:
+   ```
+   dafs(guest)> register alice
+   Password: [enter your password]
+   ```
+
+3. **Login**:
+   ```
+   dafs(guest)> login alice
+   Password: [enter your password]
+   ```
+
+### 5.3 Using Direct Commands
 1. **Open a new Terminal/Command Prompt**
 2. **Navigate to your DAFS directory**
 3. **Register a new user**:
    ```bash
-   ./target/release/dafs cli register-user "alice" "Alice Johnson" "alice@example.com"
+   ./target/release/dafs register alice
    ```
 4. **Login**:
    ```bash
-   ./target/release/dafs cli login-user "alice"
+   ./target/release/dafs login alice
    ```
 
 ## 📁 Step 6: Your First File Upload
@@ -362,17 +382,38 @@ Before we start, make sure you have:
 6. **Click "Upload"**
 7. **Wait for the upload to complete** (you'll see a progress bar)
 
-### 6.2 Using the Command Line
+### 6.2 Using the Interactive CLI
+1. **Start the interactive CLI**:
+   ```bash
+   ./target/release/dafs --cli
+   ```
+
+2. **Upload a file with tags**:
+   ```
+   dafs(guest)> upload my_document.pdf --tags work important
+   ```
+
+3. **List your files**:
+   ```
+   dafs(guest)> files
+   ```
+
+4. **Download a file**:
+   ```
+   dafs(guest)> download file_1234567890
+   ```
+
+### 6.3 Using Direct Commands
 1. **In Terminal/Command Prompt**, run:
    ```bash
    # Upload a file with tags
-   ./target/release/dafs cli upload "my_document.pdf" "work" "important"
+   ./target/release/dafs upload my_document.pdf --tags work important
    
    # List your files
-   ./target/release/dafs cli files
+   ./target/release/dafs files
    
    # Download a file
-   ./target/release/dafs cli download "file_1234567890"
+   ./target/release/dafs download file_1234567890
    ```
 
 ## 🌐 Step 7: Connecting with Other Users
@@ -383,16 +424,31 @@ Before we start, make sure you have:
 3. **Click "Scan Local Network"** to find users on your WiFi
 4. **You'll see a list of discovered users**
 
-### 7.2 Using Command Line
+### 7.2 Using Interactive CLI
 ```bash
+# Start the CLI
+./target/release/dafs --cli
+
 # Discover peers on the network
-./target/release/dafs cli discover-peers
+dafs(guest)> discoverpeers
 
 # Scan your local network
-./target/release/dafs cli scan-local-peers
+dafs(guest)> scanlocalpeers
 
 # List all known peers
-./target/release/dafs cli list-known-peers
+dafs(guest)> peers
+```
+
+### 7.3 Using Direct Commands
+```bash
+# Discover peers on the network
+./target/release/dafs discoverpeers
+
+# Scan your local network
+./target/release/dafs scanlocalpeers
+
+# List all known peers
+./target/release/dafs peers
 ```
 
 ## 💬 Step 8: Sending Your First Message
@@ -404,13 +460,25 @@ Before we start, make sure you have:
 4. **Type your message** in the text box at the bottom
 5. **Press Enter** to send
 
-### 8.2 Using the Command Line
+### 8.2 Using Interactive CLI
 ```bash
+# Start the CLI
+./target/release/dafs --cli
+
 # Send a direct message
-./target/release/dafs cli send-message "bob" "Hello! How are you?"
+dafs(guest)> sendmessage bob "Hello! How are you?"
 
 # Start the interactive messaging shell
-./target/release/dafs cli messaging-shell
+dafs(guest)> messagingshell
+```
+
+### 8.3 Using Direct Commands
+```bash
+# Send a direct message
+./target/release/dafs sendmessage bob "Hello! How are you?"
+
+# Start the interactive messaging shell
+./target/release/dafs messagingshell
 ```
 
 ## 🔧 Step 9: Configuration and Customization
@@ -438,18 +506,19 @@ export DAFS_GRPC_PORT=50052
 export DAFS_WEB_PORT=3000
 
 # Start DAFS
-./target/release/dafs
+./target/release/dafs --web
 ```
 
 ### 9.3 Adding Bootstrap Nodes
 Bootstrap nodes help you find other users:
 
 ```bash
-# Add a bootstrap node (get these from other DAFS users)
-./target/release/dafs cli add-bootstrap "QmBootstrapPeer" "/ip4/1.2.3.4/tcp/2093"
+# Using CLI
+./target/release/dafs addbootstrap QmBootstrapPeer /ip4/1.2.3.4/tcp/2093
 
-# List your bootstrap nodes
-./target/release/dafs cli list-bootstrap
+# Or using interactive CLI
+./target/release/dafs --cli
+dafs(guest)> addbootstrap QmBootstrapPeer /ip4/1.2.3.4/tcp/2093
 ```
 
 ## 🚨 Troubleshooting Common Issues
@@ -466,6 +535,16 @@ netstat -an | findstr :6543  # Windows
 
 # Kill the process
 sudo kill -9 $(lsof -t -i:6543)  # Linux/macOS
+```
+
+### Problem: Database lock issues
+**Solution**: If you see "could not acquire lock on dafs_db/db":
+```bash
+# Remove the database directory
+rm -rf dafs_db
+
+# Restart DAFS
+./target/release/dafs --web
 ```
 
 ### Problem: Build fails
@@ -517,7 +596,7 @@ You've successfully set up DAFS and are now part of a decentralized file sharing
 - ✅ Send encrypted messages
 - ✅ Discover and connect to other users
 - ✅ Use AI-powered features
-- ✅ Access everything through a web interface
+- ✅ Access everything through a web interface or command line
 
 **Welcome to the future of decentralized file sharing!** 🚀
 
@@ -527,11 +606,11 @@ You've successfully set up DAFS and are now part of a decentralized file sharing
 
 ### Starting DAFS
 ```bash
-# Start backend
-./target/release/dafs
+# Start with web dashboard (recommended)
+./target/release/dafs --web
 
-# Start web dashboard (in new terminal)
-./target/release/dafs cli startweb
+# Start interactive CLI
+./target/release/dafs --cli
 
 # Access web interface
 # Open browser to: http://localhost:3093
@@ -540,20 +619,44 @@ You've successfully set up DAFS and are now part of a decentralized file sharing
 ### Common Commands
 ```bash
 # User management
-./target/release/dafs cli register-user "username" "Name" "email"
-./target/release/dafs cli login-user "username"
+./target/release/dafs register alice
+./target/release/dafs login alice
 
 # File operations
-./target/release/dafs cli upload "file.txt" "tag1" "tag2"
-./target/release/dafs cli files
+./target/release/dafs upload document.pdf --tags work important
+./target/release/dafs files
 
 # Peer discovery
-./target/release/dafs cli discover-peers
-./target/release/dafs cli list-known-peers
+./target/release/dafs discoverpeers
+./target/release/dafs peers
 
 # Messaging
-./target/release/dafs cli messaging-shell
-./target/release/dafs cli send-message "user" "message"
+./target/release/dafs messagingshell
+./target/release/dafs sendmessage bob "Hello!"
+```
+
+### Interactive CLI Commands
+```bash
+# Start CLI
+./target/release/dafs --cli
+
+# Register user
+dafs(guest)> register alice
+
+# Login
+dafs(guest)> login alice
+
+# Upload file
+dafs(guest)> upload document.pdf --tags work important
+
+# List files
+dafs(guest)> files
+
+# Start web dashboard
+dafs(guest)> startweb
+
+# Exit CLI
+dafs(guest)> exit
 ```
 
 ### Important URLs
@@ -565,4 +668,10 @@ You've successfully set up DAFS and are now part of a decentralized file sharing
 - **2093**: P2P communication
 - **6543**: Web API
 - **50051**: gRPC
-- **3093**: Web dashboard 
+- **3093**: Web dashboard
+
+### Repository Information
+- **Repository**: https://github.com/Kyle6012/dafs
+- **Documentation**: See the links at the top of README.md
+- **Issues**: https://github.com/Kyle6012/dafs/issues
+- **Discussions**: https://github.com/Kyle6012/dafs/discussions 
