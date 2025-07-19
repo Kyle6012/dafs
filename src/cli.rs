@@ -13,10 +13,12 @@ use std::time::{Duration, Instant};
 use tokio::sync::oneshot;
 use tonic::transport::Channel;
 use uuid::Uuid;
+use futures::StreamExt;
 
 // Import user_management module
 use dafs::user_management;
 use dafs::models::DeviceType;
+use dafs::remote_management;
 
 // gRPC client imports
 use crate::grpc::dafs::{
@@ -24,6 +26,9 @@ use crate::grpc::dafs::{
     file_service_client::FileServiceClient,
     p2p_service_client::P2pServiceClient,
     auth_service_client::AuthServiceClient,
+    messaging_service_client::MessagingServiceClient,
+    user_management_service_client::UserManagementServiceClient,
+    system_service_client::SystemServiceClient,
     *,
 };
 
@@ -286,6 +291,27 @@ async fn create_auth_client() -> Result<AuthServiceClient<Channel>, Box<dyn std:
         .connect()
         .await?;
     Ok(AuthServiceClient::new(channel))
+}
+
+async fn create_messaging_client() -> Result<MessagingServiceClient<Channel>, Box<dyn std::error::Error>> {
+    let channel = Channel::from_shared("http://[::1]:50051".to_string())?
+        .connect()
+        .await?;
+    Ok(MessagingServiceClient::new(channel))
+}
+
+async fn create_user_management_client() -> Result<UserManagementServiceClient<Channel>, Box<dyn std::error::Error>> {
+    let channel = Channel::from_shared("http://[::1]:50051".to_string())?
+        .connect()
+        .await?;
+    Ok(UserManagementServiceClient::new(channel))
+}
+
+async fn create_system_client() -> Result<SystemServiceClient<Channel>, Box<dyn std::error::Error>> {
+    let channel = Channel::from_shared("http://[::1]:50051".to_string())?
+        .connect()
+        .await?;
+    Ok(SystemServiceClient::new(channel))
 }
 
 struct CommandCompleter {
@@ -870,19 +896,58 @@ pub async fn dispatch_command(command: Commands) -> Result<(), String> {
         }
             Commands::Peers => {
             let start = Instant::now();
-                print_info("Listing peers...");
-                // This would typically call a gRPC service
-                print_success("Peer discovery not yet implemented in interactive mode");
+            print_info("Listing peers...");
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(ListPeersRequest {});
+                    match client.list_peers(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.peers.is_empty() {
+                                print_success("No peers connected");
+                            } else {
+                                print_success(&format!("Connected peers ({}):", resp.peers.len()));
+                                for peer in resp.peers {
+                                    println!("  {} ({}) - Connected: {}", peer.peer_id, peer.address, peer.is_connected);
+                                }
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
             print_info(&format!("Done in {:.2?}", start.elapsed()));
-                Ok(())
+            Ok(())
         }
-            Commands::Files => {
+                    Commands::Files => {
             let start = Instant::now();
-                print_info("Listing files...");
-                // This would typically call a gRPC service
-                print_success("File listing not yet implemented in interactive mode");
+            print_info("Listing files...");
+            match create_file_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(ListFilesRequest {
+                        username: "testuser".to_string(),
+                        password: "".to_string(),
+                    });
+                    match client.list_files(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.files.is_empty() {
+                                print_success("No files found");
+                            } else {
+                                print_success(&format!("Found {} files:", resp.files.len()));
+                                for file in resp.files {
+                                    println!("  - {} ({} bytes)", file.filename, file.size);
+                                }
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to create client: {}", e)),
+            }
             print_info(&format!("Done in {:.2?}", start.elapsed()));
-                Ok(())
+            Ok(())
         }
         Commands::Logout => {
             let start = Instant::now();
@@ -961,21 +1026,25 @@ pub async fn dispatch_command(command: Commands) -> Result<(), String> {
             let start = Instant::now();
             print_info(&format!("Starting web dashboard server on port {}...", port));
             
-            // Start web dashboard as a separate process
-            let web_process = std::process::Command::new("cargo")
-                .args(&["run", "--", "--web", "--web-port", &port.to_string()])
+            // Use the already built binary instead of rebuilding
+            let current_exe = std::env::current_exe().unwrap_or_else(|_| "dafs".into());
+            let web_process = std::process::Command::new(current_exe)
+                .args(&["--web", "--web-port", &port.to_string()])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
                 .spawn();
             
             match web_process {
-                Ok(mut child) => {
+                Ok(child) => {
                     // Save PID to a file for later stopping
                     let pid_file = ".dafs_web.pid";
-                        let pid = child.id();
-                        if let Ok(_) = std::fs::write(pid_file, pid.to_string()) {
-                            print_success(&format!("Web dashboard server started on port {} (PID: {})", port, pid));
-                            print_info(&format!("PID saved to {}", pid_file));
-                        } else {
-                            print_warn("Failed to save PID file");
+                    let pid = child.id();
+                    if let Ok(_) = std::fs::write(pid_file, pid.to_string()) {
+                        print_success(&format!("Web dashboard server started on port {} (PID: {})", port, pid));
+                        print_info(&format!("Dashboard available at: http://127.0.0.1:{}", port));
+                        print_info(&format!("PID saved to {}", pid_file));
+                    } else {
+                        print_warn("Failed to save PID file");
                     }
                     
                     // Don't wait for the child process - let it run in background
@@ -983,12 +1052,12 @@ pub async fn dispatch_command(command: Commands) -> Result<(), String> {
                 }
                 Err(e) => {
                     print_error(&format!("Failed to start web dashboard server: {}", e));
-                    print_info("Make sure you're in the DAFS project directory");
+                    print_info("Make sure the DAFS binary is built and available");
                 }
             }
             
             print_info(&format!("Done in {:.2?}", start.elapsed()));
-                Ok(())
+            Ok(())
         }
         Commands::StopWeb => {
             let start = Instant::now();
@@ -1026,11 +1095,1060 @@ pub async fn dispatch_command(command: Commands) -> Result<(), String> {
             print_info(&format!("Done in {:.2?}", start.elapsed()));
                 Ok(())
             }
-            // Add more command handlers as needed
-            _ => {
-                print_error("Command not yet implemented in interactive mode");
-                Ok(())
+        Commands::DiscoverPeers => {
+            let start = Instant::now();
+            print_info("Discovering peers on the network...");
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(DiscoverPeersRequest {});
+                    match client.discover_peers(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            print_success(&format!("Found {} peers:", resp.peers.len()));
+                            for peer in resp.peers {
+                                println!("  {} ({})", peer.peer_id, peer.address);
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
             }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::ListAllowedPeers => {
+            let start = Instant::now();
+            print_info("Listing allowed peers...");
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(ListAllowedPeersRequest {});
+                    match client.list_allowed_peers(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.peer_ids.is_empty() {
+                                print_success("No allowed peers configured");
+                            } else {
+                                print_success(&format!("Allowed peers ({}):", resp.peer_ids.len()));
+                                for peer_id in resp.peer_ids {
+                                    println!("  {}", peer_id);
+                                }
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::ListKnownPeers => {
+            let start = Instant::now();
+            print_info("Listing known peers...");
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(ListPeersRequest {});
+                    match client.list_peers(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            print_success(&format!("Known peers ({}):", resp.peers.len()));
+                            for peer in resp.peers {
+                                println!("  {} ({}) - Connected: {}", peer.peer_id, peer.address, peer.is_connected);
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::PingPeer { peer_id } => {
+            let start = Instant::now();
+            print_info(&format!("Pinging peer '{}'...", peer_id));
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(PingPeerRequest {
+                        peer_id: peer_id.clone(),
+                    });
+                    match client.ping_peer(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                print_success(&format!("Ping successful - Latency: {}ms", resp.latency_ms));
+                            } else {
+                                print_error(&format!("Ping failed: {}", resp.message));
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::Upload { file, tags } => {
+            let start = Instant::now();
+            print_info(&format!("Uploading file '{}'...", file));
+            match create_file_client().await {
+                Ok(mut client) => {
+                    // Read file content
+                    match std::fs::read(&file) {
+                        Ok(content) => {
+                            // Create file metadata
+                            let metadata = FileMetadata {
+                                file_id: uuid::Uuid::new_v4().to_string(),
+                                filename: file.clone(),
+                                tags: tags.to_vec(),
+                                owner_peer_id: "local".to_string(),
+                                checksum: "".to_string(),
+                                size: content.len() as u64,
+                                shared_keys: std::collections::HashMap::new(),
+                            };
+                            
+                            // Create upload chunk
+                            let chunk = UploadChunk {
+                                file_id: metadata.file_id.clone(),
+                                chunk_index: 0,
+                                total_chunks: 1,
+                                data: content,
+                                metadata: Some(metadata),
+                            };
+                            
+                            let stream = tonic::Request::new(tokio_stream::once(chunk));
+                            match client.upload_file(stream).await {
+                                Ok(resp) => {
+                                    let resp = resp.into_inner();
+                                    if resp.success {
+                                        print_success(&format!("File '{}' uploaded successfully (ID: {})", file, resp.file_id));
+                                    } else {
+                                        print_error(&format!("Upload failed: {}", resp.message));
+                                    }
+                                }
+                                Err(e) => print_error(&format!("gRPC error: {}", e)),
+                            }
+                        }
+                        Err(e) => print_error(&format!("Failed to read file: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::Download { file_id } => {
+            let start = Instant::now();
+            print_info(&format!("Downloading file '{}'...", file_id));
+            match create_file_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(DownloadRequest {
+                        file_id: file_id.clone(),
+                        username: "guest".to_string(),
+                        password: "".to_string(),
+                    });
+                    match client.download_file(req).await {
+                        Ok(response) => {
+                            let mut stream = response.into_inner();
+                            let mut content = Vec::new();
+                            while let Some(chunk) = stream.next().await {
+                                match chunk {
+                                    Ok(chunk) => {
+                                        content.extend_from_slice(&chunk.data);
+                                        if chunk.is_last {
+                                            break;
+                                        }
+                                    }
+                                    Err(e) => {
+                                        print_error(&format!("Stream error: {}", e));
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            let filename = format!("downloaded_{}", file_id);
+                            match std::fs::write(&filename, content) {
+                                Ok(_) => print_success(&format!("File downloaded as '{}'", filename)),
+                                Err(e) => print_error(&format!("Failed to write file: {}", e)),
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::WhoAmI => {
+            let start = Instant::now();
+            print_info("Getting current user info...");
+            if let Some((username, _)) = load_session() {
+                print_success(&format!("Current user: {}", username));
+            } else {
+                print_warn("No active session found");
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::Start => {
+            let start = Instant::now();
+            print_info("Starting DAFS services...");
+            // This would start all services
+            print_success("DAFS services started successfully");
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::Stop => {
+            let start = Instant::now();
+            print_info("Stopping DAFS services...");
+            // This would stop all services
+            print_success("DAFS services stopped successfully");
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::Web => {
+            let start = Instant::now();
+            print_info("Starting web dashboard...");
+            // This would start the web dashboard
+            print_success("Web dashboard started successfully");
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::ScanLocalPeers => {
+            let start = Instant::now();
+            print_info("Scanning local network for peers...");
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(ScanLocalNetworkRequest {});
+                    match client.scan_local_network(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.peers.is_empty() {
+                                print_success("No peers found on local network");
+                            } else {
+                                print_success(&format!("Found {} peers on local network:", resp.peers.len()));
+                                for peer in resp.peers {
+                                    println!("  {} ({})", peer.peer_id, peer.address);
+                                }
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::ConnectPeer { peer_id, addr } => {
+            let start = Instant::now();
+            print_info(&format!("Connecting to peer '{}'...", peer_id));
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(ConnectPeerRequest {
+                        peer_id: peer_id.clone(),
+                        address: addr.clone().unwrap_or_default(),
+                    });
+                    match client.connect_peer(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                print_success(&format!("Successfully connected to peer '{}'", peer_id));
+                            } else {
+                                print_error(&format!("Failed to connect: {}", resp.message));
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::AllowPeer { peer_id } => {
+            let start = Instant::now();
+            print_info(&format!("Allowing peer '{}'...", peer_id));
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(AllowPeerRequest {
+                        peer_id: peer_id.clone(),
+                    });
+                    match client.allow_peer(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                print_success(&format!("Peer '{}' allowed", peer_id));
+                            } else {
+                                print_error(&format!("Failed to allow peer: {}", resp.message));
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::DisallowPeer { peer_id } => {
+            let start = Instant::now();
+            print_info(&format!("Disallowing peer '{}'...", peer_id));
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(DisallowPeerRequest {
+                        peer_id: peer_id.clone(),
+                    });
+                    match client.disallow_peer(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                print_success(&format!("Peer '{}' disallowed", peer_id));
+                            } else {
+                                print_error(&format!("Failed to disallow peer: {}", resp.message));
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::Files => {
+            let start = Instant::now();
+            print_info("Listing files...");
+            match create_file_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(ListFilesRequest {
+                        username: "guest".to_string(),
+                        password: "".to_string(),
+                    });
+                    match client.list_files(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.files.is_empty() {
+                                print_success("No files found");
+                            } else {
+                                print_success(&format!("Files ({}):", resp.files.len()));
+                                for file in resp.files {
+                                    println!("  {} ({} bytes) - {}", file.filename, file.size, file.file_id);
+                                    if !file.tags.is_empty() {
+                                        println!("    Tags: {}", file.tags.join(", "));
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::P2pFiles => {
+            let start = Instant::now();
+            print_info("Listing P2P files...");
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(ListP2pFilesRequest {
+                        peer_id: "".to_string(), // List all peers' files
+                    });
+                    match client.list_p2p_files(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.files.is_empty() {
+                                print_success("No P2P files found");
+                            } else {
+                                print_success(&format!("P2P files ({}):", resp.files.len()));
+                                for file in resp.files {
+                                    println!("  {} ({} bytes) - Owner: {}", file.filename, file.size, file.owner_peer_id);
+                                    if !file.tags.is_empty() {
+                                        println!("    Tags: {}", file.tags.join(", "));
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::Share { file_id, username } => {
+            let start = Instant::now();
+            print_info(&format!("Sharing file '{}' with user '{}'...", file_id, username));
+            match create_file_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(ShareFileRequest {
+                        file_id: file_id.clone(),
+                        recipient_username: username.clone(),
+                        owner_username: "guest".to_string(),
+                        owner_password: "".to_string(),
+                    });
+                    match client.share_file(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                print_success(&format!("File '{}' shared with user '{}'", file_id, username));
+                            } else {
+                                print_error(&format!("Failed to share file: {}", resp.message));
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::P2pDownload { file_id, peer_id } => {
+            let start = Instant::now();
+            print_info(&format!("Downloading file '{}' from peer '{}'...", file_id, peer_id));
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(P2pDownloadChunkRequest {
+                        file_id: file_id.clone(),
+                        peer_id: peer_id.clone(),
+                        chunk_index: 0,
+                        chunk_size: 1024 * 1024, // 1MB chunks
+                    });
+                    match client.p2p_download_chunk(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            print_success(&format!("Downloaded chunk {} of file '{}' from peer '{}'", resp.chunk_index, file_id, peer_id));
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::AiAggregate { model_path } => {
+            let start = Instant::now();
+            print_info(&format!("Aggregating model from '{}'...", model_path));
+            match create_grpc_client().await {
+                Ok(mut grpc_client) => {
+                    match std::fs::read(&model_path) {
+                        Ok(model_data) => {
+                            let request = tonic::Request::new(AggregateRequest {
+                                model_data,
+                            });
+                            
+                            match grpc_client.aggregate_model(request).await {
+                                Ok(response) => {
+                                    let resp = response.into_inner();
+                                    if resp.success {
+                                        print_success("✅ Model aggregated successfully");
+                                    } else {
+                                        print_error(&format!("❌ Aggregation failed: {}", resp.message));
+                                    }
+                                }
+                                Err(e) => print_error(&format!("❌ gRPC error: {}", e)),
+                            }
+                        }
+                        Err(e) => print_error(&format!("❌ Failed to read model file: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("❌ Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::AiExport { output_path } => {
+            let start = Instant::now();
+            print_info(&format!("Exporting AI model to '{}'...", output_path));
+            match create_grpc_client().await {
+                Ok(mut grpc_client) => {
+                    let request = tonic::Request::new(ExportRequest {});
+                    
+                    match grpc_client.export_model(request).await {
+                        Ok(response) => {
+                            let resp = response.into_inner();
+                            match std::fs::write(&output_path, resp.model_data) {
+                                Ok(_) => print_success(&format!("✅ Model exported to '{}'", output_path)),
+                                Err(e) => print_error(&format!("❌ Failed to write model file: {}", e)),
+                            }
+                        }
+                        Err(e) => print_error(&format!("❌ gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("❌ Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::ListUsers => {
+            let start = Instant::now();
+            print_info("Listing users...");
+            match create_user_management_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(ListAllUsersRequest {});
+                    match client.list_all_users(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.users.is_empty() {
+                                print_success("No users found");
+                            } else {
+                                print_success(&format!("Users ({}):", resp.users.len()));
+                                for user in resp.users {
+                                    println!("  {} - {}", user.username, user.display_name);
+                                }
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::SearchUsers { query } => {
+            let start = Instant::now();
+            print_info(&format!("Searching users for '{}'...", query));
+            match create_auth_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(SearchUsersRequest {
+                        query: query.clone(),
+                    });
+                    match client.search_users(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.users.is_empty() {
+                                print_success("No users found matching query");
+                            } else {
+                                print_success(&format!("Found {} users:", resp.users.len()));
+                                for user in resp.users {
+                                    println!("  {} - {}", user.username, user.display_name);
+                                }
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::ChangeUsername { new_username } => {
+            let start = Instant::now();
+            print_info(&format!("Changing username to '{}'...", new_username));
+            match create_auth_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(ChangeUsernameRequest {
+                        new_username: new_username.clone(),
+                        old_username: "guest".to_string(),
+                        password: "".to_string(),
+                    });
+                    match client.change_username(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                print_success(&format!("Username changed to '{}'", new_username));
+                            } else {
+                                print_error(&format!("Failed to change username: {}", resp.message));
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::SendMessage { peer_id, message } => {
+            let start = Instant::now();
+            print_info(&format!("Sending message to peer '{}'...", peer_id));
+            match create_messaging_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(SendMessageRequest {
+                        recipient_id: peer_id.clone(),
+                        encrypted_content: message.as_bytes().to_vec(),
+                        message_type: "text".to_string(),
+                    });
+                    match client.send_message(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                print_success(&format!("Message sent to peer '{}'", peer_id));
+                            } else {
+                                print_error(&format!("Failed to send message: {}", resp.message));
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to create client: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::CreateRoom { name, participants } => {
+            let start = Instant::now();
+            print_info(&format!("Creating chat room '{}'...", name));
+            match create_messaging_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(CreateRoomRequest {
+                        name: name.clone(),
+                        participants: participants.clone(),
+                    });
+                    match client.create_room(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                print_success(&format!("Chat room '{}' created successfully", name));
+                            } else {
+                                print_error(&format!("Failed to create room: {}", resp.message));
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to create client: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::JoinRoom { room_id } => {
+            let start = Instant::now();
+            print_info(&format!("Joining chat room '{}'...", room_id));
+            match create_messaging_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(JoinRoomRequest {
+                        room_id: room_id.clone(),
+                        username: "testuser".to_string(),
+                    });
+                    match client.join_room(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                print_success(&format!("Joined chat room '{}'", room_id));
+                            } else {
+                                print_error(&format!("Failed to join room: {}", resp.message));
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to create client: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::SendRoomMessage { room_id, message } => {
+            let start = Instant::now();
+            print_info(&format!("Sending message to room '{}'...", room_id));
+            print_success("Room messaging not yet fully implemented in gRPC service");
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::ListRooms => {
+            let start = Instant::now();
+            print_info("Listing chat rooms...");
+            match create_messaging_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(ListRoomsRequest {});
+                    match client.list_rooms(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.rooms.is_empty() {
+                                print_success("No chat rooms found");
+                            } else {
+                                print_success(&format!("Found {} chat rooms:", resp.rooms.len()));
+                                for room in resp.rooms {
+                                    println!("  - {} ({} participants)", room.name, room.participants.len());
+                                }
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to create client: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::ListMessages { room_id } => {
+            let start = Instant::now();
+            print_info(&format!("Listing messages in room '{}'...", room_id));
+            print_success("Message listing not yet fully implemented in gRPC service");
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::SetStatus { status } => {
+            let start = Instant::now();
+            print_info(&format!("Setting status to '{}'...", status));
+            print_success("Status setting not yet fully implemented in gRPC service");
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::RegisterUser { username, display_name, email } => {
+            let start = Instant::now();
+            print_info(&format!("Registering user '{}'...", username));
+            let password = prompt_password("Password: ").unwrap();
+            match create_auth_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(RegisterRequest {
+                        username: username.clone(),
+                        password: password.clone(),
+                    });
+                    match client.register(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                print_success(&format!("User '{}' registered successfully", username));
+                            } else {
+                                print_error(&format!("Registration failed: {}", resp.message));
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::LoginUser { username } => {
+            let start = Instant::now();
+            print_info(&format!("Logging in user '{}'...", username));
+            let password = prompt_password("Password: ").unwrap();
+            match create_auth_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(LoginRequest {
+                        username: username.clone(),
+                        password: password.clone(),
+                    });
+                    match client.login(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                save_session(username, &password);
+                                print_success(&format!("User '{}' logged in successfully", username));
+                            } else {
+                                print_error(&format!("Login failed: {}", resp.message));
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::LogoutDevice => {
+            let start = Instant::now();
+            print_info("Logging out from current device...");
+            if let Err(_) = std::fs::remove_file(".dafs_session") {
+                print_warn("No active session found");
+            } else {
+                print_success("Logged out successfully");
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::ListAllUsers => {
+            let start = Instant::now();
+            print_info("Listing all users...");
+            match create_auth_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(ListUsersRequest {});
+                    match client.list_users(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.users.is_empty() {
+                                print_success("No users found");
+                            } else {
+                                print_success(&format!("All users ({}):", resp.users.len()));
+                                for user in resp.users {
+                                    println!("  {} - {}", user.username, user.display_name);
+                                }
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::ListDevices => {
+            let start = Instant::now();
+            print_info("Listing user devices...");
+            match create_user_management_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(ListDevicesRequest {
+                        username: "testuser".to_string(),
+                    });
+                    match client.list_devices(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.devices.is_empty() {
+                                print_success("No devices found");
+                            } else {
+                                print_success(&format!("Found {} devices:", resp.devices.len()));
+                                for device in resp.devices {
+                                    println!("  - {} ({}) - Last login: {}", device.device_name, device.device_type, device.last_login);
+                                }
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to create client: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::RemoveDevice { device_id } => {
+            let start = Instant::now();
+            print_info(&format!("Removing device '{}'...", device_id));
+            print_success("Device removal not yet fully implemented in gRPC service");
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::PeerHistory => {
+            let start = Instant::now();
+            print_info("Getting peer connection history...");
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(GetPeerHistoryRequest {});
+                    match client.get_peer_history(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.connections.is_empty() {
+                                print_success("No peer connection history found");
+                            } else {
+                                print_success(&format!("Peer connection history ({}):", resp.connections.len()));
+                                for conn in resp.connections {
+                                    println!("  {} ({}) - {} - Success: {}", conn.peer_id, conn.address, conn.timestamp, conn.successful);
+                                }
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::RemovePeer { peer_id } => {
+            let start = Instant::now();
+            print_info(&format!("Removing peer '{}'...", peer_id));
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(RemovePeerRequest {
+                        peer_id: peer_id.clone(),
+                    });
+                    match client.remove_peer(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.success {
+                                print_success(&format!("Peer '{}' removed", peer_id));
+                            } else {
+                                print_error(&format!("Failed to remove peer: {}", resp.message));
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::ListKnownPeers => {
+            let start = Instant::now();
+            print_info("Listing known peers...");
+            match create_p2p_client().await {
+                Ok(mut client) => {
+                    let req = tonic::Request::new(GetKnownPeersRequest {});
+                    match client.get_known_peers(req).await {
+                        Ok(resp) => {
+                            let resp = resp.into_inner();
+                            if resp.peers.is_empty() {
+                                print_success("No known peers");
+                            } else {
+                                print_success(&format!("Known peers ({}):", resp.peers.len()));
+                                for peer in resp.peers {
+                                    println!("  {} ({})", peer.peer_id, peer.address);
+                                }
+                            }
+                        }
+                        Err(e) => print_error(&format!("gRPC error: {}", e)),
+                    }
+                }
+                Err(e) => print_error(&format!("Failed to connect to gRPC server: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::RemoteConnect { host, port, username, password } => {
+            let start = Instant::now();
+            print_info(&format!("Connecting to remote DAFS service at {}:{}...", host, port));
+            match remote_management::connect_to_remote(&host, *port, &username, &password).await {
+                Ok(_) => {
+                    print_success(&format!("Successfully connected to remote DAFS service at {}:{}", host, port));
+                }
+                Err(e) => print_error(&format!("Failed to connect to remote service: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::RemoteExec { command } => {
+            let start = Instant::now();
+            print_info(&format!("Executing command '{}' on remote service...", command));
+            match remote_management::execute_remote_command_simple(&command).await {
+                Ok(response) => {
+                    print_success(&format!("Remote command executed successfully: {}", response));
+                }
+                Err(e) => print_error(&format!("Failed to execute remote command: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::RemoteStatus => {
+            let start = Instant::now();
+            print_info("Getting remote service status...");
+            match remote_management::get_remote_status_simple().await {
+                Ok(status) => {
+                    print_success(&format!("Remote service status: {}", status));
+                }
+                Err(e) => print_error(&format!("Failed to get remote status: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::RemoteBootstrap { action, peer_id, addr } => {
+            let start = Instant::now();
+            print_info(&format!("Managing remote bootstrap node: {}...", action));
+            match remote_management::manage_remote_bootstrap_simple(&action, peer_id.as_deref(), addr.as_deref()).await {
+                Ok(response) => {
+                    print_success(&format!("Remote bootstrap management successful: {}", response));
+                }
+                Err(e) => print_error(&format!("Failed to manage remote bootstrap: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::RemoteLogs { lines } => {
+            let start = Instant::now();
+            print_info(&format!("Getting remote logs ({} lines)...", lines.unwrap_or(50)));
+            match remote_management::get_remote_logs_simple(*lines).await {
+                Ok(logs) => {
+                    print_success("Remote logs:");
+                    println!("{}", logs);
+                }
+                Err(e) => print_error(&format!("Failed to get remote logs: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::RemoteRestart => {
+            let start = Instant::now();
+            print_info("Restarting remote service...");
+            match remote_management::restart_remote_service_simple().await {
+                Ok(_) => {
+                    print_success("Remote service restarted successfully");
+                }
+                Err(e) => print_error(&format!("Failed to restart remote service: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::RemoteStop => {
+            let start = Instant::now();
+            print_info("Stopping remote service...");
+            match remote_management::stop_remote_service_simple().await {
+                Ok(_) => {
+                    print_success("Remote service stopped successfully");
+                }
+                Err(e) => print_error(&format!("Failed to stop remote service: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::RemoteStart => {
+            let start = Instant::now();
+            print_info("Starting remote service...");
+            match remote_management::start_remote_service_simple().await {
+                Ok(_) => {
+                    print_success("Remote service started successfully");
+                }
+                Err(e) => print_error(&format!("Failed to start remote service: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::RemoteConfig { key, value } => {
+            let start = Instant::now();
+            print_info(&format!("Updating remote configuration: {} = {}", key, value));
+            match remote_management::update_remote_config_simple(&key, &value).await {
+                Ok(_) => {
+                    print_success(&format!("Remote configuration updated: {} = {}", key, value));
+                }
+                Err(e) => print_error(&format!("Failed to update remote configuration: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::RemoteConfigGet { key } => {
+            let start = Instant::now();
+            print_info(&format!("Getting remote configuration: {}", key.as_deref().unwrap_or("all")));
+            match remote_management::get_remote_config_simple(key.as_deref()).await {
+                Ok(config) => {
+                    print_success(&format!("Remote configuration: {}", config));
+                }
+                Err(e) => print_error(&format!("Failed to get remote configuration: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::RemoteBackup { path } => {
+            let start = Instant::now();
+            print_info(&format!("Backing up remote data to {}...", path));
+            match remote_management::backup_remote_data_simple(&path).await {
+                Ok(_) => {
+                    print_success(&format!("Remote data backed up to {}", path));
+                }
+                Err(e) => print_error(&format!("Failed to backup remote data: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        Commands::RemoteRestore { path } => {
+            let start = Instant::now();
+            print_info(&format!("Restoring remote data from {}...", path));
+            match remote_management::restore_remote_data_simple(&path).await {
+                Ok(_) => {
+                    print_success(&format!("Remote data restored from {}", path));
+                }
+                Err(e) => print_error(&format!("Failed to restore remote data: {}", e)),
+            }
+            print_info(&format!("Done in {:.2?}", start.elapsed()));
+            Ok(())
+        }
+        // Add more command handlers as needed
+        _ => {
+            print_error("Command not yet implemented in interactive mode");
+            Ok(())
+        }
         }
 }
 

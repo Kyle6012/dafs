@@ -30,14 +30,23 @@ service FileService {
   
   // Share file with another user
   rpc ShareFile(ShareFileRequest) returns (ShareFileResponse);
+  
   // Get file metadata
   rpc GetFileMetadata(FileMetadataRequest) returns (FileMetadataResponse);
+  
+  // Delete file
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
 }
 
 // Auth Service
 service AuthService {
   rpc Register(RegisterRequest) returns (RegisterResponse);
   rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc ChangeUsername(ChangeUsernameRequest) returns (ChangeUsernameResponse);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse);
+  rpc WhoAmI(WhoAmIRequest) returns (WhoAmIResponse);
 }
 
 // P2P Service
@@ -53,9 +62,58 @@ service P2PService {
   
   // List bootstrap nodes
   rpc ListBootstrapNodes(ListBootstrapNodesRequest) returns (ListBootstrapNodesResponse);
+  
   // P2P file listing and download
   rpc ListP2pFiles(ListP2pFilesRequest) returns (ListP2pFilesResponse);
   rpc P2pDownloadChunk(P2pDownloadChunkRequest) returns (P2pDownloadChunkResponse);
+  
+  // Peer discovery and connection
+  rpc DiscoverPeers(DiscoverPeersRequest) returns (DiscoverPeersResponse);
+  rpc ConnectPeer(ConnectPeerRequest) returns (ConnectPeerResponse);
+  rpc PingPeer(PingPeerRequest) returns (PingPeerResponse);
+  rpc GetKnownPeers(GetKnownPeersRequest) returns (GetKnownPeersResponse);
+  rpc RemovePeer(RemovePeerRequest) returns (RemovePeerResponse);
+  rpc ScanLocalNetwork(ScanLocalNetworkRequest) returns (ScanLocalNetworkResponse);
+  rpc GetPeerHistory(GetPeerHistoryRequest) returns (GetPeerHistoryResponse);
+  
+  // Peer management
+  rpc AllowPeer(AllowPeerRequest) returns (AllowPeerResponse);
+  rpc DisallowPeer(DisallowPeerRequest) returns (DisallowPeerResponse);
+  rpc ListAllowedPeers(ListAllowedPeersRequest) returns (ListAllowedPeersResponse);
+}
+
+// Messaging Service
+service MessagingService {
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
+  rpc JoinRoom(JoinRoomRequest) returns (JoinRoomResponse);
+  rpc SendRoomMessage(SendRoomMessageRequest) returns (SendRoomMessageResponse);
+  rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
+  rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse);
+  rpc SetStatus(SetStatusRequest) returns (SetStatusResponse);
+  rpc ListOnlineUsers(ListOnlineUsersRequest) returns (ListOnlineUsersResponse);
+}
+
+// User Management Service
+service UserManagementService {
+  rpc RegisterUser(RegisterUserRequest) returns (RegisterUserResponse);
+  rpc LoginUser(LoginUserRequest) returns (LoginUserResponse);
+  rpc LogoutDevice(LogoutDeviceRequest) returns (LogoutDeviceResponse);
+  rpc ListAllUsers(ListAllUsersRequest) returns (ListAllUsersResponse);
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+  rpc RemoveDevice(RemoveDeviceRequest) returns (RemoveDeviceResponse);
+}
+
+// System Service
+service SystemService {
+  rpc Start(StartRequest) returns (StartResponse);
+  rpc Stop(StopRequest) returns (StopResponse);
+  rpc StartWeb(StartWebRequest) returns (StartWebResponse);
+  rpc StopWeb(StopWebRequest) returns (StopWebResponse);
+  rpc StartApi(StartApiRequest) returns (StartApiResponse);
+  rpc StopApi(StopApiRequest) returns (StopApiResponse);
+  rpc StartGrpc(StartGrpcRequest) returns (StartGrpcResponse);
+  rpc StopGrpc(StopGrpcRequest) returns (StopGrpcResponse);
 }
 
 // AI Service Messages
@@ -149,28 +207,87 @@ message ShareFileResponse {
   string message = 2;
 }
 
+message DeleteFileRequest {
+  string file_id = 1;
+  string username = 2;
+  string password = 3;
+}
+
+message DeleteFileResponse {
+  bool success = 1;
+  string message = 2;
+}
+
 // Auth Service Messages
 message RegisterRequest {
   string username = 1;
   string password = 2;
 }
+
 message RegisterResponse {
   bool success = 1;
   string message = 2;
 }
+
 message LoginRequest {
   string username = 1;
   string password = 2;
 }
+
 message LoginResponse {
   bool success = 1;
   string message = 2;
+}
+
+message LogoutRequest {
+  string username = 1;
+}
+
+message LogoutResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ChangeUsernameRequest {
+  string old_username = 1;
+  string new_username = 2;
+  string password = 3;
+}
+
+message ChangeUsernameResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListUsersRequest {
+  // Empty for now
+}
+
+message ListUsersResponse {
+  repeated UserInfo users = 1;
+}
+
+message SearchUsersRequest {
+  string query = 1;
+}
+
+message SearchUsersResponse {
+  repeated UserInfo users = 1;
+}
+
+message WhoAmIRequest {
+  // Empty for now
+}
+
+message WhoAmIResponse {
+  UserInfo user = 1;
 }
 
 // File Metadata Fetch
 message FileMetadataRequest {
   string file_id = 1;
 }
+
 message FileMetadataResponse {
   FileMetadata metadata = 1;
   bool found = 2;
@@ -181,15 +298,18 @@ message FileMetadataResponse {
 message ListP2pFilesRequest {
   string peer_id = 1;
 }
+
 message ListP2pFilesResponse {
   repeated FileMetadata files = 1;
 }
+
 message P2pDownloadChunkRequest {
   string peer_id = 1;
   string file_id = 2;
   uint32 chunk_index = 3;
   uint32 chunk_size = 4;
 }
+
 message P2pDownloadChunkResponse {
   bytes data = 1;
   uint32 chunk_index = 2;
@@ -234,6 +354,347 @@ message BootstrapNodeInfo {
   string address = 2;
 }
 
+// Peer Discovery and Connection
+message DiscoverPeersRequest {
+  // Empty for now
+}
+
+message DiscoverPeersResponse {
+  repeated DiscoveredPeer peers = 1;
+}
+
+message DiscoveredPeer {
+  string peer_id = 1;
+  string address = 2;
+  string user_agent = 3;
+}
+
+message ConnectPeerRequest {
+  string peer_id = 1;
+  string address = 2;
+}
+
+message ConnectPeerResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message PingPeerRequest {
+  string peer_id = 1;
+}
+
+message PingPeerResponse {
+  bool success = 1;
+  uint64 latency_ms = 2;
+  string message = 3;
+}
+
+message GetKnownPeersRequest {
+  // Empty for now
+}
+
+message GetKnownPeersResponse {
+  repeated DiscoveredPeer peers = 1;
+}
+
+message RemovePeerRequest {
+  string peer_id = 1;
+}
+
+message RemovePeerResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ScanLocalNetworkRequest {
+  // Empty for now
+}
+
+message ScanLocalNetworkResponse {
+  repeated DiscoveredPeer peers = 1;
+}
+
+message GetPeerHistoryRequest {
+  // Empty for now
+}
+
+message GetPeerHistoryResponse {
+  repeated PeerConnectionInfo connections = 1;
+}
+
+message PeerConnectionInfo {
+  string peer_id = 1;
+  string address = 2;
+  string timestamp = 3;
+  bool successful = 4;
+}
+
+// Peer Management
+message AllowPeerRequest {
+  string peer_id = 1;
+}
+
+message AllowPeerResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message DisallowPeerRequest {
+  string peer_id = 1;
+}
+
+message DisallowPeerResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListAllowedPeersRequest {
+  // Empty for now
+}
+
+message ListAllowedPeersResponse {
+  repeated string peer_ids = 1;
+}
+
+// Messaging Service Messages
+message SendMessageRequest {
+  string recipient_id = 1;
+  bytes encrypted_content = 2;
+  string message_type = 3;
+}
+
+message SendMessageResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message CreateRoomRequest {
+  string name = 1;
+  repeated string participants = 2;
+}
+
+message CreateRoomResponse {
+  bool success = 1;
+  string room_id = 2;
+  string message = 3;
+}
+
+message JoinRoomRequest {
+  string room_id = 1;
+  string username = 2;
+}
+
+message JoinRoomResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message SendRoomMessageRequest {
+  string room_id = 1;
+  bytes encrypted_content = 2;
+}
+
+message SendRoomMessageResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListRoomsRequest {
+  // Empty for now
+}
+
+message ListRoomsResponse {
+  repeated ChatRoomInfo rooms = 1;
+}
+
+message ChatRoomInfo {
+  string room_id = 1;
+  string name = 2;
+  repeated string participants = 3;
+  string created_by = 4;
+}
+
+message ListMessagesRequest {
+  string room_id = 1;
+}
+
+message ListMessagesResponse {
+  repeated EncryptedMessageInfo messages = 1;
+}
+
+message EncryptedMessageInfo {
+  string sender_id = 1;
+  bytes encrypted_content = 2;
+  string timestamp = 3;
+  string message_type = 4;
+}
+
+message SetStatusRequest {
+  string status = 1;
+}
+
+message SetStatusResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListOnlineUsersRequest {
+  // Empty for now
+}
+
+message ListOnlineUsersResponse {
+  repeated UserStatusInfo users = 1;
+}
+
+message UserStatusInfo {
+  string user_id = 1;
+  string username = 2;
+  string status = 3;
+  string last_seen = 4;
+}
+
+// User Management Service Messages
+message RegisterUserRequest {
+  string username = 1;
+  string display_name = 2;
+  string email = 3;
+  string password = 4;
+}
+
+message RegisterUserResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message LoginUserRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginUserResponse {
+  bool success = 1;
+  string message = 2;
+  string session_token = 3;
+}
+
+message LogoutDeviceRequest {
+  string device_id = 1;
+}
+
+message LogoutDeviceResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListAllUsersRequest {
+  // Empty for now
+}
+
+message ListAllUsersResponse {
+  repeated UserInfo users = 1;
+}
+
+message ListDevicesRequest {
+  string username = 1;
+}
+
+message ListDevicesResponse {
+  repeated DeviceInfo devices = 1;
+}
+
+message DeviceInfo {
+  string device_id = 1;
+  string device_name = 2;
+  string device_type = 3;
+  string last_login = 4;
+}
+
+message RemoveDeviceRequest {
+  string username = 1;
+  string device_id = 2;
+}
+
+message RemoveDeviceResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// System Service Messages
+message StartRequest {
+  // Empty for now
+}
+
+message StartResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message StopRequest {
+  // Empty for now
+}
+
+message StopResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message StartWebRequest {
+  uint32 port = 1;
+}
+
+message StartWebResponse {
+  bool success = 1;
+  string message = 2;
+  string url = 3;
+}
+
+message StopWebRequest {
+  // Empty for now
+}
+
+message StopWebResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message StartApiRequest {
+  uint32 port = 1;
+}
+
+message StartApiResponse {
+  bool success = 1;
+  string message = 2;
+  string url = 3;
+}
+
+message StopApiRequest {
+  // Empty for now
+}
+
+message StopApiResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message StartGrpcRequest {
+  uint32 port = 1;
+}
+
+message StartGrpcResponse {
+  bool success = 1;
+  string message = 2;
+  string url = 3;
+}
+
+message StopGrpcRequest {
+  // Empty for now
+}
+
+message StopGrpcResponse {
+  bool success = 1;
+  string message = 2;
+}
+
 // Common Messages
 message FileMetadata {
   string file_id = 1;
@@ -243,4 +704,13 @@ message FileMetadata {
   string checksum = 5;
   uint64 size = 6;
   map<string, bytes> shared_keys = 7; // username -> encrypted file key
+}
+
+message UserInfo {
+  string user_id = 1;
+  string username = 2;
+  string display_name = 3;
+  string email = 4;
+  string status = 5;
+  string last_seen = 6;
 } 

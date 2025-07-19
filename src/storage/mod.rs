@@ -49,6 +49,11 @@ impl Storage {
         }
         Ok(out)
     }
+    
+    pub fn delete_metadata(&self, file_id: &Uuid) -> Result<()> {
+        self.db.remove(file_id.as_bytes())?;
+        Ok(())
+    }
 } 
 
 impl Default for Storage {

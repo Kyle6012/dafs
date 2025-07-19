@@ -68,17 +68,17 @@ async fn main() -> anyhow::Result<()> {
     
     let cli = Cli::parse();
     
-    // If --cli flag is provided, start interactive shell
-    if cli.cli {
-        cli::run_repl().await;
-        return Ok(());
-    }
-    
     // If CLI command is provided, handle it
     if let Some(command) = cli.command {
         let rt = tokio::runtime::Runtime::new()?;
         let result = rt.block_on(cli::dispatch_command(command));
         return result.map_err(|e| anyhow::anyhow!(e));
+    }
+    
+    // If --cli flag is provided, start interactive shell
+    if cli.cli {
+        cli::run_repl().await;
+        return Ok(());
     }
     
     // If no specific services are requested, run in integrated mode

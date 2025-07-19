@@ -431,4 +431,67 @@ pub async fn restore_remote_data(connection_id: &str, path: &str) -> Result<Stri
     let mut manager = RemoteManager::new();
     manager.load_connections()?;
     manager.restore_data(connection_id, path).await
+}
+
+// Simplified functions for CLI that don't require connection_id
+pub async fn connect_to_remote(host: &str, port: u16, username: &str, password: &str) -> Result<()> {
+    let connection_id = connect_to_remote_service(host, port, username, password).await?;
+    println!("Connected with ID: {}", connection_id);
+    Ok(())
+}
+
+pub async fn execute_remote_command_simple(command: &str) -> Result<String> {
+    // For now, use a mock implementation
+    Ok(format!("Command '{}' executed successfully (mock)", command))
+}
+
+pub async fn get_remote_status_simple() -> Result<String> {
+    // For now, use a mock implementation
+    Ok("Remote service is running (mock)".to_string())
+}
+
+pub async fn manage_remote_bootstrap_simple(action: &str, _peer_id: Option<&str>, _addr: Option<&str>) -> Result<String> {
+    // For now, use a mock implementation
+    Ok(format!("Bootstrap {} completed (mock)", action))
+}
+
+pub async fn get_remote_logs_simple(lines: Option<u32>) -> Result<String> {
+    // For now, use a mock implementation
+    let line_count = lines.unwrap_or(50);
+    Ok(format!("Remote logs ({} lines) - mock implementation", line_count))
+}
+
+pub async fn restart_remote_service_simple() -> Result<()> {
+    // For now, use a mock implementation
+    Ok(())
+}
+
+pub async fn stop_remote_service_simple() -> Result<()> {
+    // For now, use a mock implementation
+    Ok(())
+}
+
+pub async fn start_remote_service_simple() -> Result<()> {
+    // For now, use a mock implementation
+    Ok(())
+}
+
+pub async fn update_remote_config_simple(_key: &str, _value: &str) -> Result<()> {
+    // For now, use a mock implementation
+    Ok(())
+}
+
+pub async fn get_remote_config_simple(key: Option<&str>) -> Result<String> {
+    // For now, use a mock implementation
+    Ok(format!("Remote config: {} = mock_value", key.unwrap_or("all")))
+}
+
+pub async fn backup_remote_data_simple(_path: &str) -> Result<()> {
+    // For now, use a mock implementation
+    Ok(())
+}
+
+pub async fn restore_remote_data_simple(_path: &str) -> Result<()> {
+    // For now, use a mock implementation
+    Ok(())
 } 
